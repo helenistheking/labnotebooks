@@ -1,0 +1,206 @@
+# CSE 185 Lab Notebook - Week 1
+
+#### Name: Helen King
+#### Date: April 11th 
+
+Helens-MacBook-Air:~ helenking$ ssh cs185scu@ieng6.ucsd.edu
+Password: 
+Attempting to create directory /home/linux/ieng6/cs185s/cs185scu/perl5
+
+ 
+Wed Apr 11, 2018  2:48pm - Prepping cs185s
+[cs185scu@ieng6-203]:~:1$ pwd
+/home/linux/ieng6/cs185s/cs185scu
+#prints the working directory or the absolute path
+
+[cs185scu@ieng6-203]:~:2$ ls
+#to see whats in the current directory
+
+[cs185scu@ieng6-201]:~:20$ cd ..
+#changes directory to parent directory
+
+[cs185scu@ieng6-201]:cs185s:21$ ls
+#shows all the usernames in the public directory
+
+[cs185scu@ieng6-201]:public:26$ cd week1/
+#changes the directory to week 1
+
+[cs185scu@ieng6-201]:week1:27$ ls
+NC_000913.3.fasta  amp_res_1.fastq  amp_res_2.fastq
+#the three files in week1 l
+
+[cs185scu@ieng6-201]:week1:28$ [cs185scu@ieng6-201]:week1:28$ ls -lh
+total 2.4G
+-rwxr-xr-x 1 cs185s ieng6_cs185s 4.5M Mar 12 13:46 NC_000913.3.fasta
+-rwxr-xr-x 1 cs185s ieng6_cs185s 1.2G Mar 12 13:46 amp_res_1.fastq
+-rwxr-xr-x 1 cs185s ieng6_cs185s 1.2G Mar 12 13:46 amp_res_2.fastq
+#this shows the long (-l) human (-h) readable format of the directory
+
+[cs185scu@ieng6-201]:week1:29$ head -n 20 NC_000913.3.fasta
+#shows the first 20 lines
+#just the base code
+
+[cs185scu@ieng6-201]:week1:31$ head -n 20 amp_res_1.fastq
+#shows the first 20 lines
+
+cat NC_000913.3.fasta
+#opens the whole of the fasta format
+
+[cs185scu@ieng6-201]:week1:33$ wc -l amp_res_1.fastq
+14214080 amp_res_1.fastq
+
+**Number of reads in each file would be 14214080 **
+
+[cs185scu@ieng6-201]:week1:39$ cd
+go back to the home directory
+
+[cs185scu@ieng6-201]:~:40$ mkdir week1
+create a directory called week1 this will be your work space
+
+[cs185scu@ieng6-201]:~:42$ fastqc -h
+makes sure that that the simple fastqc analystics runs properly. outputs the manual
+
+[cs185scu@ieng6-201]:~:43$ fastqc -o . /home/linux/ieng6/cs185s/public/week1/amp_res_1.fastq /home/linux/ieng6/cs185s/public/week1/amp_res_2.fastq
+***-o to output to the current directory***
+***specify the directory in order to do align the fastq***
+
+[cs185scu@ieng6-203]:~:61$ mv /home/linux/ieng6/cs185s/cs185scu/amp_res_1_fastqc.zip /home/linux/ieng6/cs185s/cs185scu/week1
+saved in the wrong area use this command to move or rename 
+
+[cs185scu@ieng6-201]:~:44$ ls
+amp_res_1_fastqc.html  amp_res_2_fastqc.html  perl5
+amp_res_1_fastqc.zip   amp_res_2_fastqc.zip   week1
+*checking whether there has been an output of the report (html version)*
+
+Helens-MacBook-Air:~ helenking$ pwd
+/Users/helenking
+Helens-MacBook-Air:~ helenking$ ls
+*use these commands to find the path to your desktop*
+scp
+Helens-MacBook-Air:~ helenking$ scp cs185scu@ieng6.ucsd.edu:/home/linux/ieng6/cs185s/cs185scu/amp_res_1_fastqc.html Desktop/
+*do the same for the number 2. and then use this to copy to my desktop*
+in the html files
+Red warnings for 
+Per Base sequence quality- This module will raise a failure if the lower quartile for any base is less than 5 or if the median for any base is less than 20.
+
+Per tile sequence quality- 
+This module will issue a warning if any tile shows a mean Phred score more than 5 less than the mean for that base across all tiles.
+
+
+Section 5
+[cs185scu@ieng6-203]:~:52$ sickle pe
+*command that shows what the sickle function gets up to such as trimming a MASSIVE file down*
+**can control both the quality threshold and a length threshold**
+-f -r -o -p refers to forward/reverse for original file or trimmed
+-t is the type of quality values -s output trimmed files
+
+**UNIX NOTE \ means continued onto next line and -____ is the 'flag' **
+
+[cs185scu@ieng6-203]:week1:97$ sickle pe \-f /home/linux/ieng6/cs185s/public/week1/amp_res_1.fastq \-r /home/linux/ieng6/cs185s/public/week1/amp_res_2.fastq \-t sanger \-o trimpair1.fastq \-p trimpair2.fastq \-s singletons.fastq
+*use no spaces between the \ and the 'flag'*
+
+[cs185scu@ieng6-203]:week1:105$ rm -f singletons_30.fast 
+**to remove any files if you forget to put the quality amount**
+*f means forces it to*
+
+[cs185scu@ieng6-203]:week1:107$ sickle pe \-q 30 \-f /home/linux/ieng6/cs185s/public/week1/amp_res_1.fastq \-r /home/linux/ieng6/cs185s/public/week1/amp_res_2.fastq \-t sanger \-o trimpair1_30.fastq \-p trimpair2_30.fastq \-s singletons_30.fast
+*same as before but with quality of 30*
+
+???The first two are the trimmed forward and reverse reads, where BOTH the forward and its matching reverse read passed the trimming filter. The singletons file contains reads where one read passed the trimming filter, but its partner did not. The reads that do not pass are not output.
+Sickle will report back stats, on how many paired reads were kept, but you should check the line count??
+
+[cs185scu@ieng6-203]:week1:101$ fastqc -o . trimpair1.fastq trimpair2.fastq
+
+GO TO OTHER TERMINAL FOR DESKTOP
+Helens-MacBook-Air:~ helenking$ scp cs185scu@ieng6.ucsd.edu:/home/linux/ieng6/cs185s/cs185scu/week1/trimpair2_fastqc.html Desktop/
+
+Section 6- mapping
+aligner called BWA-MEM used instead of needleman- longer sequences
+
+[cs185scu@ieng6-203]:week1:115$ cp /home/linux/ieng6/cs185s/public/week1/NC_000913.3.fasta .
+*copies file into current directory*
+
+[main] CMD: bwa index NC_000913.3.fasta
+new files based on the reference- "index sequences"
+
+[cs185scu@ieng6-203]:week1:138$ bwa mem NC_000913.3.fasta trimpair1.fastq trimpair2.fastq > trimpaired.sam
+bwa mem means running the BWA MEM algorithm. order is reference seqeunce then then test data and then > "filename.sam" means it does not output the command into the window
+
+Section 7- SAM
+[cs185scu@ieng6-203]:week1:143$ head -n 5 trimpaired.sam
+not all the fastq sequences could be aligned if low fraction then the sample might be contaminated ect. 
+output shows unique read in the first field and then tab is used as gaps
+
+[cs185scu@ieng6-203]:week1:144$ samtools flagstat trimpaired.sam ?????
+6906203 + 0 in total (QC-passed reads + QC-failed reads)99.90% mapped 
+6881172 + 0 properly paired (99.66% : N/A)
+5718 + 0 singletons (0.08% : N/A)
+
+[cs185scu@ieng6-203]:week1:146$ samtools view -S -b trimpaired.sam > trimpaired.bam
+                           
+[cs185scu@ieng6-203]:week1:147$ 
+[cs185scu@ieng6-203]:week1:147$ samtools sort trimpaired.bam > sortedtrimpaired.bam
+[bam_sort_core] merging from 3 files...
+[cs185scu@ieng6-203]:week1:148$ samtools index sortedtrimpaired.bam
+compress and sort the sam file to form a bam file which then needs to be indexed like the ference 
+
+[cs185scu@ieng6-203]:week1:149$ samtools tview sortedtrimpaired.bam NC_000913.3.fasta
+next visualise the sam file
+use ? key to explore
+. or , means same base 
+use g to go to specific position e.g. NC_000913.3:position number
+
+Section 8-make a pileup + call variants
+see how many have a mutation in the same position
+visualiser too difficult. sam files not organised -> pileup
+
+[cs185scu@ieng6-203]:week1:151$ samtools mpileup -f NC_000913.3.fasta sortedtrimpaired.bam > my.mpileup
+this displays mutations in specific positions. 
+
+[cs185scu@ieng6-203]:week1:153$ head -n 100  my.mpileup
+shows that unmutated bases still kept on file. just to view mutated bases
+
+[cs185scu@ieng6-203]:week1:154$ curl -L https://sourceforge.net/projects/varscan/files/VarScan.v2.3.9.jar/download > VarScan.jar
+must install first
+
+[cs185scu@ieng6-203]:week1:155$ java -jar VarScan.jar
+then bring up main page... wont be the same for all programs due to open source having different prerequistite software (even other java)
+
+[cs185scu@ieng6-203]:week1:156$ java -jar VarScan.jar mpileup2snp my.mpileup --min-var-freq 0.50 --variant --output-vcf 1 > VarScan.vcf
+-min-var-frequency --> minimum % of non-reference bases at a postion required
+-variants --> ony output positions above threshold
+-output-vcf1 --> variant cell format
+
+[cs185scu@ieng6-203]:week1:158$ cat VarScan.vcf 
+displays the list of variants 
+9 variant positions (6 SNP, 3 indel)
+0 were failed by the strand-filter
+6 variant positions reported (6 SNP, 0 indel)
+
+Section 9
+
+Ensemble Variant Effect Predictor doesn’t like the way the chromosome field is labeled in our vcf file, so we have to edit it first to match.
+awk parses delimited data
+SIMPLEST --> awk '/search_pattern/ {actiontotakeonmatches; another_action;}' [path to file]
+
+[cs185scu@ieng6-203]:week1:159$ awk '{if (NR>24) $1="Chromosome"; print}' VarScan.vcf > mymodVarScan.vcf
+uses if statement to include stuff after the header and if the line is above 24
+dollar sign to mark a field 
+
+enter it onto the Variant Effect Predictor
+variant allele frequency
+92439 G -> A missense b0084 D -> N
+803662 C -> A missense b0771 L -> I
+852762 A -> G not in gene 
+1905761 G -> A missense b1821 G -> D
+3535147 A -> C missense b3404 V -> G
+4390754 G -> T synonomus b4161 A
+
+DOESNT WORK
+http://bacteria.ensembl.org/Escherichia_coli_str_k_12_substr_mg1655/Tools/VEP/View?db=core;tl=3rO3rg2Q1RhtzG1o-18402504
+
+explains vcf files
+https://gatkforums.broadinstitute.org/gatk/discussion/1268/what-is-a-vcf-and-how-should-i-interpret-it
+
+
+

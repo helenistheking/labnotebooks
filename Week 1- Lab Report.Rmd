@@ -1,0 +1,78 @@
+# Week 1 Lab Report 
+##### Helen King
+
+## Abstract
+ This week in lab, we investigated about the mutation which causes ampicillin resistance in a strain of E. coli. First examining SNPs within the genome that cause amino acid change and a change of protein function and resistance in an E. coli strain. This was achieved through using tools such as VarScan and sickle, UNIX, and variant effect prediction, an website that determines the effect of the variants on the structure and function of the E. coli strain.   
+
+## Introduction
+ The molecular basis of antibiotic resistance is due to one of the four main mechanisms that occur in a bacterial cell due to change the DNA sequence. These include altering the target site, decreased uptake, "bypass" pathways and enzympatic inactivation or modification. [2] Genetic mechanisms for evolution ensure the spread of antibiotic resistance genes throughout a population. These include transfection, transduction and conjugation, processes which transfer DNA sequences from one bacterium to another. However, when there is a strong selection pressure for antibiotics resistance genes due to increased exposure from overuse and missuse of antibiotics; the timeline of resistance increases and with that, antibiotics become increasingly more obsolete. "For example, most strains of Streptococcus pneumoniae in Britain are inhibited by 0.01 mg/l of benzylpenicillin (the minimum inhibitory concentration), whereas for Escherichia coli 32-64 mg/l are required to inhibit growth, a level which cannot be achieved in the human body." [2] 
+ To combat this , using a form of personalised medicine, Peacock suggests sequencing the invading pathogen in order to have a better, accurate treatment to the infection. [1] A co-ordinated worldwide effort is needed to order to prevent an epidemic where antibiotics becomes obsolete and average life span decreases.
+ 
+## Methods
+In lab 1, we aligned an ampicillin resistant E. Coli genome to a reference genome of wt E Coli in order to find postions of the genome where mutations occur. Given two fastq files for forward and backwards reads then, the .fasta file of the reference genome, in the shared public directory. First, we used the fastqc function to map the original reads to the reference genome. But upon transferring the html versions of the file into the desktop and after analysis, there was problems with the quality of the reads. 
+
+The _sickle pe_ command without flags, shows what the sickle function gets up to. It trims down a MASSIVE file down and can control both the quality threshold and a length threshold. Using the _sickle pe_ command as well as the flags, -f -r refers to the file name of the forward/reverse for original file and then -o and -p are the flags to specify the output file names. The flag -t is the type of quality, we used sanger. The flag -s, specifies the output singleton file name. We repeated this with flag, -q, for quality.
+
+Then mapping occurs using bwa function with mem as a flag to align using the BWA MEM alogrithm (you have to run bwa index on the reference genome before hand). The output is a .sam file which then has to be compressed into a bam file. This is done via samtools view (use the flags -S -b). This outputs a .bam file which is sorted and indexed, though samtools sort and samtools index.
+
+To visualise use the samtools tview function. However, must make a pileup using the refernce genome and the bam file (-f as a flag) through samtools mpileup function. Run the command _samtools mpileup -f NC_000913.3.fasta sortedtrimpaired.bam > my.mpileup_, this displays mutations in specific positions. my.mpileup shows that unmutated bases still kept on file. just to view mutated bases use VarScan.  We installed the java VarScan package. Run the line 
+ _java -jar VarScan.jar mpileup2snp [pileup_name] --min-var-freq [frequency threshold value] --variant --output-vcf 1 > VarScan.vcf_. This outputs the end vcf at the end of the pipeline. 
+
+But, we processed the format of the VCF before we outputted to  http://bacteria.ensembl.org/Escherichia_coli_str_k_12_substr_mg1655/Tools/VEP/View?db=core;tl=3rO3rg2Q1RhtzG1o-18402504.
+This is due the structure of a vcf file seen in Figure 4 (taken from [3]) 
+
+_Figure 4 vcf structure_
+![screen shot 2018-04-17 at 08 45 47](https://user-images.githubusercontent.com/36276388/38881020-eee95bd4-421b-11e8-8479-5af1f23def75.png)
+
+We want to remove the [HEADER LINES]. Therefore we run an awk command that selects to include stuff after the header and if the line is above 24 dollar sign to mark a field . _awk '{if (NR>24) $1="Chromosome"; print}' VarScan.vcf > mymodVarScan.vcf_
+This was processed after being uploaded into the desktop, through the usual protocol using the non ssh terminal window and scp command.
+Then it was uploaded into the variant effect predictor (http://bacteria.ensembl.org/Escherichia_coli_str_k_12_substr_mg1655/Tools/VEP/Results?db=core;tl=htzG1o1dFOqXdqkn-18404451).  
+
+## Results
+
+For the first alignment of the raw reference reads for the fastqc. The quality of the reads needed to improve in order to correct the poor per base sequence quality (Figure 1). Then using sickle function, trim the reads down by raising the quality and length threshold to get more accurate output. This improved the per base quality as shown by the box and whisker plots, as low quality reads were removed. For example the per base quality for above 96/97 read length improved from 24 to 28. However, the sickle function did not correct the per tile sequence quality.
+
+_Figure 1- Quality report for amp_res_1.fastq_
+![screen shot 2018-04-17 at 07 27 48](https://user-images.githubusercontent.com/36276388/38876821-19dc32b2-4212-11e8-9eb4-d060b06c607b.png)
+
+_Figure 2-  Quality report for trimmed pair 1 and 2 fastqc file_
+![screen shot 2018-04-17 at 07 27 59](https://user-images.githubusercontent.com/36276388/38877074-be1f2a64-4212-11e8-917e-a5bff7c3d9eb.png)
+
+To form the bam file, the fastqc are aligned to the reference genome, NC_000913.3.fasta, which creates a sam file. This is then compressed and sorted to form a bam file that can be used to form a pile up. 
+
+The output of samtools flagstat funciton shows the statistics 
+6906203 + 0 in total (QC-passed reads + QC-failed reads)99.90% mapped 6881172 + 0 properly paired (99.66% : N/A) 5718 + 0 singletons (0.08% : N/A). 
+
+This shows that there was zero failed QC failedreads but 5718 singletons. This is because they do not assemble due to having an overlapping contig.
+
+The results after processing through the Variant Effect Predictor on bacteria.ensembl.org.
+
+_Figure 3 Table displaying base change and amino acid change._
+
+|Position in Genome|Base Change| Mutation type|gene name|Amino Acid Change|Description|
+|----|-----|----|----|-----|----|
+|92439| G -> A |missense| b0084 |D -> N| penicillin-binding protein 3 |
+|803662| C -> A |missense| b0771 |L -> I| aconitase family protein |
+|852762| A -> G |not in gene| | | |
+|1905761| G -> A |missense| b1821 |G -> D| putative Mn(2+) efflux pump, mntR-regulated |
+|3535147| A -> C |missense| b3404 |V -> G| sensory histidine kinase in two-component regulatory system with OmpR |
+|4390754| G -> T |synonomus| b4161 |A| |
+
+After checking the function of the genes where missense mutation occurs on ebi. As a synonomus would have no change in the amino acid, by definition, however missense would cause a change in protein function.  
+
+## Discussion
+In conclusion, there are four possible SNPs that could be collectively or partially responsble for the ampicillin resistant E Coli. This is after the putative list of six that was derived through the alignment pipeline. SNP 852762 was not found in the gene and SNP 4390754 (Figure 3) was a synonomous mutation. The remaining four missense mutations caused a change transcriptionally. The SNP with the largest effect, would be 92439 due to causing a change in the penicillin-binding protein 3. Ampicillin blongs to the pencillin group of antibiotics, so a change in its binding site could mean its mechanism of action is stopped. The remaining three could have other unforseen consequences due to cellular metabolism and cascades. 
+
+For the future, you could automate and implement this process clinically. This would help prevent the problems with antibiotics resitance within hospitals and would paticularly useful for vunerable individuals like TB and elderly patients, who could die if exposed to an infection without an antibiotic to fight it. However, this would make a small dent into the problem as the majority of antibiotics is used the farming industry. 
+
+## Improvements
+One major flaw of the experiment is that the reference genome is from a public database. The ideal reference genome would be from the laboratory strain that was not resistant and then, the mutated strain. The SNPs might have been due to natural variation from our experimental control and the reference sample. On experimental level, I would process the fastqc reads further, in order to improve the per tile sequence quality (figures 1 and 2) and other quality controls. This would improve the confidence in the end results. To improve the scientific rigour in the future, to make a more educated number for min var freq value for my VarScan. I chose it due to being prescribed in the lab instructions. However, it should be derived based on the data set. Personally, I encountered problems with the base UNIX code. I learnt about utilising different tabs in order to transfer files to the desktop from the server. Also, how to navigate around UNIX efficiently. Using these and integrating the use of bioinformatics tools has been a steep learning curve for me.
+
+## Citations
+[1] Bring microbial sequencing to hospitals. Sharon Peacock. 29MAY2014|VOL509|NATURE|557
+
+[2]The origins and molecular basis of antibiotic resistance. Hawkey PM. BMJ : British Medical Journal. 1998;317(7159):657-660.
+
+[3] What is a VCF and how should I interpret it?
+ Geraldine_VdAuweraGeraldine_VdAuwera Cambridge, MA 
+https://gatkforums.broadinstitute.org/gatk/discussion/1268/what-is-a-vcf-and-how-should-i-interpret-it

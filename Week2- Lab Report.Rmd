@@ -1,0 +1,159 @@
+# Antigenic Drift Within Influenza Genome
+##### Helen King
+
+## Abstract
+In this lab, our main aim was to eludicate the reason why, even after taking the flu vaccine, I got the flu, possibly from my roomate. The hypothesis we want to test is that the viral population within my roommate probably mutated and become resistant to this years flu vaccination, which was then passed onto me. We sequenced my roommates HA genes. HA is hemmagluttin which, is a glycoprotein responsible for the attachement of the influenza virus to a cell.[1] We compared the SNPs that cause missense mutations within the roommates genome and the residues with high mutation rates within epitope regions of HA. 
+
+## Introduction
+The flu vaccine works by targeting the viral surface protein called hemmagglutin. This surface protein then allows the virus to bind with sialic acid on membranes of epithelial cells in the respiratory tract. Viral RNA then gets inserted into the host genome and, host translates and creates viral proteins. Neuraminidase allows te virus to be released from the host cell and infect other neighbouring cells. The symptoms such of the flu, are all side effects of the immune system trying to remove to kill the cells hijaked by the virus.
+
+Influenza has an extremely high mutation rate of one mutation per genome per replication therefore within one infected patient, there is a quasispecies as there is a population of flu viruses that have different but similar mutations. 
+Antigenic drift is the mechanism for the accumulation of mutations in DNA for antibody-binding sites. In the context of flu vaccinations, it may be caused with herd immunity at the beginning of the season and the global circulation of strains. [4]
+The targeted deep seq of mixed populations compared to isogenic populations shows lower coverage of a range of mutations within an alignment. This leads to a decreased sensitivity to a mutation within mixed populations compared to isogenic. The fact influenza is a mixed population is important to show the significance of cell-to-cell variance. 
+There are lots of sources of error in next-gen sequencing, split into experimentally and then in the processing of the information. Experimentally, sample degradation, incorrect library preperation an problems with sequencing and imaging all lead to incorrect or inaccurate results. 
+ 
+## Methods
+Setting up for this lab started with git hub. This was done using the following command to create a week 2 repositry for me. 
+
+`` git clone [github address] week2 
+``
+
+Afterwards, an .md file was made for my lab notebook and then added to my git repositry, using emacs and git add functions respectively. The git commit used to commit the .md file. Use -a flag everytime and -m flag and "" to give descriptive messages abou the commit. The git push is used to make changes visible on githib use pull command to update the clone in your repositry.
+
+Raw data given was the .fastq format for the roommate. We then cut that down to output the contents of the file using a pipe with functions cat, awk, sort -n and uniq -c. A pipe "|" transfers the output of one function to the next, without a outputfile.
+
+We then downloaded the reference sequence for the influenza hemagglutinin gene from NCBI using the efetch command. The flags used where, -db nucleotide, -id KF848938.1 and  -format fasta. This was then assigned to a .fasta file locally.
+Using the similar pipeline seen in week 1, an index file is formed with the bwa index command on the .fasta file. Then use bwa mem function on the reference .fasta file and the roommate.fastq file, making sure to use correct path to the roommate file in the public/week2 folder. Use pipes to then feed the file into samtools view (with -S and -b flags) and then into samtools sort. Finally, assign the file name through ">" to [name].bam file. Use samtools view -f4 of the .bam file and the wc, to double check it has been done correcly Continue with this pipeline using the samtools index function on the .bam file. Afterwards, use samtools pileup command with parameters -d 1000000 (this depth limit must be higher than the coverage) and -f of the reference fasta file, assigning the output as a roommate.mpileup file. 
+ 
+The final step to form the vcf file loading the VarScan through the code below
+
+``java -jar /home/linux/ieng6/cs185s/public/tools/VarScan.jar mpileup2snp \
+``
+
+and then using the roommate.mpileup command setiting the min-var-freq to 0.95, the variants flag leave blank and the output flag to vcf 1. This can then be assigned to roommate.vcf file which contains all possible snps between the roommate genome and reference genome. This gives only 7 SNPs, to access just the POS, REF BASE, ALT BASE and allele percentage use this pipe:
+
+``cat roommate.vcf | grep -v "##" | awk '{print $2, $4, $5, $10}'|awk -F '[ :]' '{print $1, $2, $3, $10}''``
+
+The next step is to go on to the NCBI and download the FASTA sequence for KF848938.1 Then upload to WebDSV, manually, to find the triplet code for the 7 SNPs above. Work out the mutated base, whether the residue changes and therefore whether the SNP causes synonomus resides or a missense mutation.
+Now repeat the steps above, beginning with the mpileup, first lowering the --min-var-freq to 0.001. This allows more rare variants to be found. Next repeat the cat pipe and copy these values into excel. 
+
+Next we need to compare three controls with no genetic variants to exclude out the possible SNPs found that are actually sequencing errors. First wc command on each of the files name SRR1705858.fastq, ....59.fastq and .....60.fastq respectively (all are found in the ppublic folder). The roommate.fastq outputs similar number of reads.  We will use the read length of 151, even though there are a range of reads smaller than this. 
+
+Do the align pipeline using bwa mem of each .fastq file against the reference .fasta file, creating .sam files, then .bam files. If you wanted to visualise variants, samtools index of the bam file and then samtools tview the bam file against the reference.fasta. Pile up next, repeat all these steps with each of the three files. Then do VarScan, which is already uploaded so just do m.pileup command with the rare value for min-var-freq and assign a appropriate file name.
+
+28, 24 and 27 variant positions where discovered respectively. Use the cat pipe command, used previously, to extract POS., REF, ALT, FREQ. 
+
+Compare the control results to your roomate results by finding the range of each controls by using +/- 3 s.d. of the mean. Take the largest value for top range and the lowest value for bottom range, then ignore all variants in roommate rare that are within this range. Then use WebDSV to identify the original amino acid at each position, position number in the protein sequence, and the amino acid resulting from the mutation. Then compared these to the residues numbers in the epitope regions found in "Epitope analysis for influenza vaccine design". The rare mutation that is in an epitopic region and has the rare mutation.
+
+## Results
+
+The aim of this lab is to invesitgate how, on a molecular basis, I got the flu after getting the vaccination. The first piece of information is that the roommate's virus has similar HI profile to H3N2, which is covered by this seasons vaccination. We suspect that the roommate is a highly mutagenic environment which causes the virus to mutate quickly, and this virus then infected me. To find what the possible mutation is, the first step is to use wc and awk commands to look at the roommate.fastq file. This shows that someone has already processed it and rremoved the low quality bases from the ends of the reads as it shows a range of different read lengths with 187237 copies at max read length 151.
+
+Using, the efetch command to download the reference sequence with NCBI read number KF848938.1. Then used bwa mem method to align the roommate.fastq file to create a .bam file. Then pileup the file and use VarScan on the mpileup with min-var-freq value of 0.95. This reports back 7 SNPs and no indel. After analysis of by uploading the refernce file to WebDSV and analysing the change in the triplet code. The figure 1 below was created. Only one SNP was plausible as causing mutated influenza virus that effected me.
+
+| Base Change | Triplet Code Change | Amino Acid Change | Mutation Type |
+|-------------|---------------------|-------------------|---------------|
+| A72G        | ACA>ACG             | Thr24Thr          | synonymous    |
+| C117T       | GCC>GCT             | Ala39Ala          | synonymous    |
+| G595T       | GCA>TCA             | Ala119Ser         | missense      |
+| T774C       | TTT>TTC             | Phe258Phe         | synonymous    |
+| T1008G      | GCT>GCG             | Ala336Ala         | synonymous    |
+| A1260C      | CTA>CTC             | Leu420Leu         | synonymous    |
+| T1339C      | TTG>CTG             | Leu447Leu         | synonymous    |
+___Figure 1- variants in roommates genome (with minvarfreq of 0.95) that are the possible cause of mutation ____
+
+By having a high min-var-freq value, you are discounting other mutations that could possibly cause the viral strain that infected me. As the sample from the roomate is the sequencing of a population of viral quasispecies, the mutated strain that infected me could make up a small proportion . To include the "rare variants" we lowered the minvarfreq value to 0.001, the results are shown in Figure 2. The downside is that sequencing and amplification errors are also included in this now. 
+
+| POS  | REF | ALT | FREQ   |
+|------|-----|-----|--------|
+| 38   | T   | C   | 0.45%  |
+| 72   | A   | G   | 99.97% |
+| 117  | C   | T   | 99.91% |
+| 216  | A   | G   | 0.18%  |
+| 218  | A   | G   | 0.20%  |
+| 254  | A   | G   | 0.28%  |
+| 276  | A   | G   | 0.37%  |
+| 295  | C   | T   | 0.23%  |
+| 319  | T   | C   | 0.22%  |
+| 409  | T   | C   | 0.26%  |
+| 495  | C   | T   | 1.04%  |
+| 524  | A   | G   | 0.19%  |
+| 595  | G   | T   | 99.94% |
+| 691  | A   | G   | 0.17%  |
+| 722  | A   | G   | 0.19%  |
+| 774  | T   | C   | 99.96% |
+| 910  | G   | A   | 0.73%  |
+| 915  | T   | C   | 0.27%  |
+| 987  | A   | G   | 0.25%  |
+| 1008 | T   | G   | 99.90% |
+| 1043 | A   | T   | 0.19%  |
+| 1086 | A   | G   | 0.26%  |
+| 1100 | T   | C   | 0.20%  |
+| 1260 | A   | C   | 99.90% |
+| 1293 | G   | A   | 61.82% |
+| 1339 | T   | C   | 99.97% |
+| 1460 | A   | G   | 0.23%  |
+| 1473 | C   | T   | 0.23%  |
+| 1517 | A   | G   | 0.22%  |
+| 1521 | G   | A   | 1.12%  |
+| 1604 | T   | C   | 0.25%  |
+
+___Figure 2- Rare variants found in the roommates genome____
+
+In order to distinguish between sequencing errors and real mutations occuring at very low rates (these could still be the cause of the mutated strain that infected you despite the vaccination). To do this we sequenced the three controls of different H3N2 influenza viruses which have no true genetic variants. Therefore, SNPs found between these and the reference genome can account for the sequencing errors in the roommate.The remaining mutations are true genetic variant. First we inspect the .fastq files of the isogenic samples to get an estimate of the coverage. One of these can provide a read count as seen in figure 3. 
+
+``
+SRR1705858.fastq- 1026344 2052688 95286078 
+SRR1705859.fastq- 933308 1866616 86554542 
+SRR1705860.fastq 999856 1999712 92887574 
+roommate.fastq 1146956 2293912 106490754
+``
+___Figure 3- the counts for .fastq files___
+
+Afterwards, repeat the alignment pipeline to create vcf files for each of the samples. Then we found the mean and standard deviation and the range which is three times the standard deviation and +/- from the mean. If within these the greatest and lowest of the boundaries (0.4717% and 0.0413%), we remove that mutation from the putative list of rare mutations. This results in Figure 5. 
+
+
+|          |   Mean   | Standard Deviation | Higher Range | Lower Range |
+|---------|-------------|--------------------|--------------|-------------|
+| SRR1705858  |   0.2565%    | 0.0717%     | 0.4717% | 0.0413% |
+| SRR10705859 |   0.2369%    | 0.0524%     | 0.3941% | 0.0798% |
+| SRR1705860  |   0.2382%    | 0.0406%     | 0.3601% | 0.1164% |
+___Figure 4- the mean, standard deviation and range of the three ____ files____
+
+
+| POS  | REF | ALT | FREQ   | Reference Triplet Code | Roomate Triplet Code | Reference Amino Acid | Roommate Amino Acid | Mutation  |
+|------|-----|-----|--------|------------------------|----------------------|----------------------|--------------------|-----------|
+| 72   | A   | G   | 99.97% | ACA                    | ACG                  | Thr24                | Thr                | Synonomus |
+| 117  | C   | T   | 99.91% | GCC                    | GCT                  | Ala39                | Ala                | Synonomus |
+| 495  | C   | T   | 1.04%  | AAC                    | AAT                  | Asn165               | Asn                | Synonomus |
+| 595  | G   | T   | 99.94% | GCA                    | TCA                  | Ala199               | Ser                | Missense  |
+| 774  | T   | C   | 99.96% | TTT                    | TTC                  | Phe258               | Phe                | Synonomus |
+| 910  | G   | A   | 0.73%  | GCC                    | ACC                  | Ala304               | Thr                | Missense  |
+| 1008 | T   | G   | 99.90% | GCT                    | GCG                  | Ala336               | Ala                | Synonomus |
+| 1260 | A   | C   | 99.90% | CTA                    | CTC                  | Leu420               | Leu                | Synonomus |
+| 1293 | G   | A   | 61.82% | CTG                    | CTA                  | Leu431               | Leu                | Synonomus |
+| 1339 | T   | C   | 99.97% | TTG                    | CTG                  | Leu447               | Leu                | Synonomus |
+| 1521 | G   | A   | 1.12%  | CTG                    | CTA                  | Leu507               | Leu                | Synonomus |
+
+___Figure 5- rare variants in roommates genome that possible cause of mutation
+
+
+We entered these mutations using the WebDSV method as before and compared the only the missense mutations with the regions of epitopic regions of hemeagglutin listed. Missense mutations are the only type that will cause a change in the function of the hemmeaglutin and the virus. If the changed residue resides in the epitopic region which is area of the protein which binds with antibiotics, it is almost certainly causing the flu vaccination to be no longer effective. Of the two missense mutatuons at residues 199 and 304. The only one that lies in the epitopic regions is the guanine to adenosine SNP at residue 304. 
+
+
+_"Epitope A (residues 122, 124, 126, 130–133, 135, 137, 138, 140, 142–146, 150, 152, 168) presents one point mutation at residue 131. Epitope B (residues 128, 129, 155–160, 163, 165, 186–190, 192–194, 196–198) presents three point mutations at residues 155, 156, and 186. Epitope C (residues 44–48, 50, 51, 53, 54, 273, 275, 276, 278–280, 294, 297, 299, 300, 304, 305, 307–312) presents one point mutation at residue 50. Epitope D (residues 96,102,103,117,121,167,170–177,179,182, 201, 203, 207–209, 212–219, 226–230, 238, 240, 242, 244, 246–248) presents no mutations. Epitope E (residues 57, 59, 62, 63, 67, 75, 78, 80–83, 86–88, 91, 92, 94, 109, 260–262, 265) presents two point mutations at residues 75 and 83."_
+Figure 4- The residue numbers that correlate with regions of epitopic region. [2]
+
+## Discussion
+The results mean that we could then redesign the vaccination to include a antibody against this mutated version of influenza, where the residue 304 is changed. However, this depends if this mutation tends to occur at a higher rate. So, further analysis of the viral quasispecies found in other influenza patients. Especially as the 2017/2018 vaccination proved to be only 35% effective. To combat the antigenic drift [4] over the influenze season, Maciej suggests improved detection of short-term antigenic drift to lead to more accurate prevention if influenza. 
+
+Deep sequencing experiments can have lots of sources of error, so there are ways to correct this. A computational method for controlling errors could be using a threshold to trim the phred quality score, e.g. 30 so that the base call accuracy is over 99.9%.  Another method is increasing the coverage, either by increasing the depth or breadth. The final method we could use is minimizing amplification so, not using PCR for library prep in order to prevent the amplification of error, and the skewing of information. [3]
+
+
+## Citations
+[1] UniProtKB - P03452 (HEMA_I34A1)- http://www.uniprot.org/uniprot/P03452
+[2] Muñoz ET, Deem MW. Epitope analysis for influenza vaccine design. Vaccine. 2005;23(9):1144-1148. doi:10.1016/j.vaccine.2004.08.028.
+[3] Michael Molnar, Lucian Ilie; Correcting Illumina data, Briefings in Bioinformatics, Volume 16, Issue 4, 1 July 2015, Pages 588–599, https://doi.org/10.1093/bib/bbu029
+[4]Boni MF. Vaccination and antigenic drift in influenza. Vaccine. 2008;26(Suppl 3):C8-14.
+
+To remove the errors now included in the list of putative mutant rare genes, more data processing is needed. Sequencing of three isogenic H3N2 viral genotypes which together act as a more accurate reference sample. This means that the common mutatins found in both these three genotypes and the roommates genome than they can be credited to sequencing errors.

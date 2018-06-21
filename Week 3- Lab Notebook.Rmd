@@ -1,0 +1,344 @@
+# CSE 185 Lab Notebook - Week 3
+__Section 0__
+_Today, you will assemble next generation sequencing reads into a complete genome. On Thursday, you will compare your genome to that of closely related species, and evaluate it against the published reference genome to see how you did._
+
+_Today’s sequencing reads are in two libraries corresponding to DNA fragments of the bacteria Staphylococcus aureus.Read length and Insert size_
+
+_The first library (“frag”) is paired-end with the read directions toward each other (“innie”). The insert size of the first library is 180 bp (the length of DNA between the Illumina adapters), and the read length is 101 bp. We will use this library today to assemble contigs.
+The second library (“short_jump”), which you will use in the scaffolding step is paired-end with the reads oriented away from one another (“outie”). Sometimes this library set up is called mate-pair instead of paired-end. The short_jump insert size is 3500 bp, and the read length is 37 bp. We will use this library on Thursday to scaffold our assembled contigs._
+
+_difference between insert size and read length
+Insert size is the length of the DNA (or RNA) that you want to sequence and that is "inserted" between the adapters (so adapters excluded)
+ number of cycles corresponds to the output read length.
+ C=LN/G, where C is coverage, L is read length, N is the number of reads and G is the haploid length._
+
+Process most likely to be affected by sequencing coverage? contig assembly
+
+_You are scrolling through the human refernce genome (fasta file) near the centromere region of a chroosome and notice a bunch of Ns in the sequence which means that the region represents a gap between contigs that were connected by scaffolding_
+
+The fewer contigs the better, the bigger the contig the better, the less Ns the better
+the N50 is the length of the contig where 50% of the DNA is in that or larger contigs
+advantages- captures useful information about the distrubtion of contig lengths not captured by the max, min and mean
+widely use thus allowing comparison to competing assemblies
+disadvantages- doesn't capture information about the actual quality of the contigs. depends on the genome size, which may be unknown or inconsistenly estimated across data sets
+
+de brujn graphs 
+overlap-layout consensus
+string graphs
+the longer the reads the more they can resolve repeats
+high coverage- use consus sequence to correct sequencing errors
+library design
+
+__Section 0.1__
+Log out the normal server by doing ctrl+D
+sign in new server so that you can use plotting tools. the -X flage means you can allow X-forwarding
+Helens-Air:~ helenking$ ssh -X cs185scu@ieng6-700.ucsd.edu
+
+
+__Section 1__
+[cs185scu@ieng6-700]:~:477$ git clone https://github.com/cse185-sp18/cse185-week3-helenistheking.git week3
+[cs185scu@ieng6-700]:week3:481$ cp ../public/week3/*.fastq week3/
+__usually bad practice to copy fastq files but need to do this to circumvent permissions__
+
+[cs185scu@ieng6-700]:week3:487$ wc -l frag_1.fastq
+6230376 frag_1.fastq
+[cs185scu@ieng6-700]:week3:508$ awk '{s++}END{print s/4}' frag_1.fastq     
+1557594
+
+
+| Fastq File   | Output  | Number of Reads |
+|--------------|---------|-----------------|
+| frag_1       | 6230376 | 1557594         |
+| frag_2       | 6230376 | 1557594         |
+| short_jump_1 | 4445728 | 1111432         |
+| short_jump_2 | 4445728 | 1111432         |
+
+___Table 1. the number of reads in each raw file___
+
+[cs185scu@ieng6-700]:week3:502$ git status
+On branch master
+Your branch is up-to-date with 'origin/master'.
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+
+	frag_1.fastq
+	frag_1_fastqc.html
+	frag_1_fastqc.zip
+	frag_2.fastq
+	frag_2_fastqc.html
+	frag_2_fastqc.zip
+	short_jump_1.fastq
+	short_jump_1_fastqc.html
+	short_jump_1_fastqc.zip
+	short_jump_2.fastq
+	short_jump_2_fastqc.html
+	short_jump_2_fastqc.zip
+ 
+ git add .gitignore/ git commit -a -m"Adding gitignore file to the repositry"/ git push
+ 
+ **UNIX TIP**: Save your work frequently! It is a good idea to type "ctrl-x ctrl-s" (if using Emacs) often (I do it subconsciously literally every minute or so) to make sure you don't lose your work. If you are using Emacs and by chance forgot to save your work before exiting, you can often find the unsaved changes in a temporary file ending with a "~" in the same directory.
+**UNIX/GIT TIP**: If you make changes to your lab notebook or report directly from the web browser, and want to update your local repository on ieng6 with those changes, you can use "git pull" to see the updates.
+**UNIX/GIT TIP**: We will often be dealing with a lot of files, and not all of these make sense to track with git. In general, git is great for tracking code or small text (or markdown) files. You can also store figure files (e.g. pngs of screenshots). On the other hand, don't add any data files, like fastqs or BAMs.
+
+“initial valley point”- bin 5- 34039
+
+__Section 2__
+Use frag1 and frag2 files to create the genome
+use de brujn graph method
+size of k-mers are important
+Jellyfish is a kmer counting program that will count the frequency of all possible k-mers of a given length in our data. The jellyfish count command takes the following options:
+-m specifies the kmer length
+-C tells it to ignore directionality (it treats each read the same as its reverse complement)
+-s is an initial estimate for the size of the hash table jellyfish uses, set > genome size
+-o specifies the name of the output file. choose a name with the k-mer length in it
+
+[cs185scu@ieng6-700]:week3:515$ jellyfish count -m 31 -s 1000000 -o 31 -C frag_1.fastq
+[cs185scu@ieng6-700]:week3:516$ jellyfish histo 31 > 31.histo
+make a histogram of the file
+
+
+[cs185scu@ieng6-700]:week3:517$ cat 31.histo
+1 38284989
+2 629723
+3 82223
+....
+
+Section 3
+Open python in terminal window
+[cs185scu@ieng6-700]:week3:502$ ipython
+
+
+In [1]: import matplotlib; matplotlib.use("Agg")
+
+In [2]: import matplotlib.pyplot as plt
+
+In [3]: import pandas as pd
+
+In [4]: plt.figure()
+
+In [5]: r31 = pd.read_csv("31.histo", sep=" ", names=["kmercount", "number"])
+
+In [6]: plt.bar(r31.iloc[1:100,]["kmercount"], r31.iloc[1:100,]["number"]);
+
+In [7]: plt.savefig("frag_1_31.pdf")
+[cs185scu@ieng6-700]:week3:503$ git add frag_1_31.pdf
+
+[cs185scu@ieng6-700]:week3:511$ git commit -a -m"[]"
+
+use jellyfish
+``[cs185scu@ieng6-700]:week3:506$ jellyfish count -m 31 -s 10000000 -o 31corrected -C frag_1.fastq.cor.pair_1.fq
+[cs185scu@ieng6-700]:week3:507$ jellyfish histo 31corrected > 31corrected.histo``
+ 
+``
+ipython
+import matplotlib; matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import pandas as pd
+plt.figure()
+r31 = pd.read_csv("31corrected.histo", sep=" ", names=["kmercount", "number"])
+plt.bar(r31.iloc[1:100,]["kmercount"], r31.iloc[1:100,]["number"]);
+plt.savefig("frag_1_31corrected.pdf")``
+
+__Section 4__
+Kmer based error correction takes advantage of the fact our data has a relatively high depth of coverage. For each of the low frequency kmers, the software will try to find similar high-frequency k-mers that are only one or two mutations away, and ‘correct’ the read with the untrustworthy k-mer so that we can still use it in assembly. use SOAPdenovo2 - short oligonucleotide alignment program. - going to error corect on frag1 and frag2.fastq files. max kmer size is 27
+
+___emacs filelist___
+to open the file containing two names of the two files which thye want to correct. 
+and then type ctrl-x ctrl-s to save and ctrl-x ctrl-c to exit.
+
+``[cs185scu@ieng6-700]:week3:514$ KmerFreq_HA --help 
+
+ [cs185scu@ieng6-700]:week3:524$ KmerFreq_HA -k 27 -L 101 -i 10000000 -p corrected -l filelist``
+
+This command will take about 5-6 minutes to run. It is generating the frequency of every k-mer in our data, then creating a hash-table to make them easier to access. When the command completes, run the corrector command shown below which actually corrects our reads.
+
+“initial valley point”- bin 5- 34039
+
+``[cs185scu@ieng6-700]:week3:528$ Corrector_HA -k 27 -Q 33 -o 3 -l 5 corrected.freq.gz filelist``
+change the flag -l to 5 because thats where the valley point of the kmer histogram
+
+frag_1.fastq.cor.pair.single.stat 
+this is the output files we are interested in
+
+
+
+__Part 5. Collect data on corrected reads, calculate genome size__
+
+use wc -l 
+read number
+``4217572 frag_1.fastq.cor.pair_1.fq
+4217572 frag_2.fastq.cor.pair_2.fq``
+These reads are still left to be mapped.
+
+the new valley point 
+is the bin 2 15515
+multiplicity (or bin) of the first “peak” after that valley- 14 142225
+
+The correcto_HA also trimmed data with low quality scores the average read length of the corrected files can be calculated to have the average read length of
+``[cs185scu@ieng6-700]:week3:514$ awk 'NR%4==2{sum+=length($0)}END{print sum/(NR/4)}' frag_1.fastq.cor.pair_1.fq      
+95.631
+[cs185scu@ieng6-700]:week3:515$ awk 'NR%4==2{sum+=length($0)}END{print sum/(NR/4)}' frag_2.fastq.cor.pair_2.fq
+93.3334
+``
+
+the total number of bases in each corrected file. 
+``[cs185scu@ieng6-700]:week3:524$ grep -v ">" frag_1.fastq.cor.pair_1.fq | wc | awk '{print $3-$1}'
+T1=247286808
+[cs185scu@ieng6-700]:week3:523$ grep -v ">" frag_2.fastq.cor.pair_2.fq | wc | awk '{print $3-$1}'
+T2=245507928``
+
+N = (M*L)/(L-K+1) Genome_size = T/N
+
+(N: Depth of coverage, M: Kmer peak, K: Kmer-size, L: avg readlength T: Total bases)
+
+N1= (142225*95.631)/(95.631-27+1)=19.22755
+
+G1= 247286808/19.22755=13015095 
+
+
+Recall that we calculated the kmer distribution using only the first pairs
+so only use G1 value.
+
+Optional extra credit
+
+!!!!!!The actual length of the Staph aureus genome is around 3 million bp. How close were you? If you didn't get that (which we didn't! we're not quite sure why but have some ideas), hypothesize why you might have over or under estimated the genome size. Include your result and hypothesis in your lab report
+
+The genome size I got was around 13 million bp which is off 3 million bp by 6 times more. I don't think I have used the correct values because this is horribly off. If T is higher- the quality of reads could mean they should have been removed but haven;t so increase the number of bases  
+N is lower- Due to kmer peak being too low. 
+
+__6. Assemble reads with minia__
+[cs185scu@ieng6-700]:week3:530$ minia -in filelist -kmer-size 31 -abuncance-min 2 -out minned   
+
+kmer size -31
+i am alone so no other sizes 
+true-reads peak 
+abundance is usually 2 unless specified
+
+minia -in filelist -kmer-size 43 -abundance-min 2 -out minned_43
+mv minned_43.contigs.fa thursday/
+minia -in filelist -kmer-size 27 -abundance-min 2 -out minned_27
+mv minned_27.contigs.fa thursday/
+
+
+
+__7. Analyze your contigs__
+
+ wc -l minned.contigs.fa
+1398 minned.contigs.fa
+BUT divide by 2 as most fasta files have got two lines
+1398/2=699 conigs
+
+length of shortest 
+cat minned.contigs.fa | awk 'NR%2==0{print length}' | sort -n | head 
+63
+63
+63
+
+length of longest
+[cs185scu@ieng6-700]:week3:539$ cat minned.contigs.fa | awk 'NR%2==0{print length}' | sort -n -r | head 
+80334
+74606
+73000
+72450
+
+``week3:540$ cat minned.contigs.fa | awk 'NR%2==0{print length}' | datamash min 1 max 1
+63	80334``
+``
+[cs185scu@ieng6-700]:thursday:557$ cat minned_27.contigs.fa | awk 'NR%2==0{print length}' | datamash min 1 max 1
+55	74591``
+``
+[cs185scu@ieng6-700]:thursday:558$ cat minned_43.contigs.fa | awk 'NR%2==0{print length}' | datamash min 1 max 1
+87	99881``
+
+shows datamash
+
+This is the report form QUAST or quallity assessment tool for genome assemblies
+
+
+| k-mer size | Number of contigs | Longest contig | Shortest contig | Average scaffold size | N50    |
+|------------|-------------------|----------------|-----------------|-----------------------|--------|
+| 27         | 323               | 258295         | 101             | 9041                  | 112792 |
+| 31         | 284               | 258872         | 100             | 10191                 | 128380 |
+| 43         | 239               | 358369         | 100             | 12108                 | 235666 |
+
+Table 2.
+
+
+
+
+
+
+25284
+
+Part 2
+__7. Compare Contig Assembly Results With the Class__
+
+create the two scatter plots.
+Did k-mer size influence the success of the assembly? Answer in your lab report discussion.
+
+__8. Use short jump library to scaffold minia contigs.__
+
+These short contigs not a complete genome as not in correct order. Our contigs were stitching together 101 bp reads from 180 bp long fragments. Our second short jump consisters paired 37 bp reads from DNA frags that were 3500 bp long. if the forward member of a pair to one contig and its reverse partner binds to a different contig, we know that those positions must be ~3500 bp apart in the actual genome.. By combining all of the mapping data from these pairs, scaffolding software can figure out the optimal, correct way to link the contigs together.
+SSPACE does two steps 1. bowtie aligner used to map the shortjump to the minia contigs and those mapping results to connet the contigs into bigger scaffolds. 
+
+[cs185scu@ieng6-700]:week3:502$ mkdir thursday
+
+Lib1 short_jump_1.fastq short_jump_2.fastq 3500 0.5 RF
+
+``SSPACE_Basic_v2.0.pl -l sspace_library -s minned.contigs.fa -z 100 -v 1 -p 1 -b sspaced_scafflold
+SSPACE_Basic_v2.0.pl -l sspace_library -s minned_27.contigs.fa -z 100 -v 1 -p 1 -b sspaced_scafflold_27
+SSPACE_Basic_v2.0.pl -l sspace_library -s minned_43.contigs.fa -z 100 -v 1 -p 1 -b sspaced_scafflold_43``
+
+
+
+__9. Clean up original shortjump read files, see if scaffolding improves__
+In next gen seq analyssi, as much data as possible or highest, cleanest quality data. That is the question
+Small read length of 37 bps so the minimum length will be set to 20, the default.
+
+Next use quality trimmming on the short jump reads, then scaffold again
+		
+``sickle pe -t sanger -f short_jump_1.fastq -r short_jump_2.fastq -o trimmed_sj1.fastq -p trimmed_sj2.fastq -s singletrim
+``		
+
+``[cs185scu@ieng6-700]:thursday:569$ ls -lh trimmed_sj1.fastq 
+-rw-r----- 1 cs185scu ieng6_cs185s 1.1M May 18 14:58 trimmed_sj1.fastq
+[cs185scu@ieng6-700]:thursday:570$ ls -lh short_jump_1.fastq 
+-rwxr-x--- 1 cs185scu ieng6_cs185s 162M Apr 23 14:25 short_jump_1.fastq``
+
+should have worked
+
+Then scaffold again using SSPACE
+
+``emacs sspace_library_trimmed
+
+Lib1 trimmed_sj1.fastq trimmed_sj2.fastq 31 0.5 RF``
+
+Ctrl-x Ctrl-c
+
+SSPACE_Basic_v2.0.pl -l sspace_library_trimmed -s minned.contigs.fa -z 100 -v 1 -p 1 -b sspaced_trimmed
+		
+The one with trimming has more scaffolds relative to all values of kmers.
+
+__10. Try to close the gaps in the scaffolds.__
+		
+
+``GapCloser -a sspaced_scafflold.final.scaffolds.fasta -o sspacedscaffold.fa -l 101 -b trimmed.config``
+repeated
+
+    
+-o is the name of the output fasta file. This will contain your original scaffolds with gaps filled in
+-l The maximum read length in your experiments
+-b Configuration file describing the read libraries to input.
+
+Two outputs per run- Assemblies as scaffolds (compared to contigs) and the assemblies split- which QUAST ads to the comparison as the broken version. Assemblies are split by cont. The broken fieles used to construct contigs used for scaffolds. Real scaffolds and these reconstructed contigs can be compared to see if the scaffolding step was useful or not. 
+Number of missasemblies between the two files are the same, the number is lower in broken version. Add step= scaffolding. Intoduce errors unrelated conigs --> single scaffold and doesnt fix misassemblies already present in contigs. 
+The N50 values and the max contig values after the Gap closer
+
+| k-mer size | N50    | N50 (broken) | Max. Contig | Max. Contig (broken) |
+|------------|--------|--------------|-------------|----------------------|
+| 27         | 110509 | 84453        | 258569      | 258569               |
+| 31         | 127459 | 90496        | 259002      | 259002               |
+| 43         | 234083 | 172742       | 358985      | 281179               |
+
+Table 3.
+

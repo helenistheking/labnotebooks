@@ -1,0 +1,136 @@
+# CSE 185 Lab Notebook - Week 6
+Background
+Studying telomeres the highly repetitive regions at the ends of chromosomes. Telomeres serve many important functions, including protecting the ends of chromosomes, help organise chromosomes in the nucleus and allowing chromosomes to replicate properly. Each time a cell divides, telomeres shorten in length 25-20 bo. Get too short, a cell will undergo apoptosis. Important marker for aging 
+
+Experiment
+mouse cells isolte proteins with telomere regions. Mass spec on mixture of proteins and want to determine identitiy of proteins.
+Mass spec input is mixture of ions from one or more proteins list of (m/z) and abundance.
+Shotgun seqeuncing vs shotgun proteonomics
+
+trypsin enzymes cleaves proteins after lysine (K) or arginine (R) usually want peptides 10 aa long
+liquid chromatography for separating peptides.then enter first mass spec then choose most abundant ions (peptide ) then level 2 after fragmenting that peptide.
+
+__1. Explore the PRIDE database using the PRIDE inspector__
+EMBL-EBI (the European Molecular Biology Laboratory - European Bioinformatics Institute), hosts the PRIDE database for proteomics data from mass spec. stored in XML format- cant read easily
+
+__2. Inspect the raw XML datafile__
+MS/MS spectra from proteins isolated from telomere regions. 
+less -S /home/linux/ieng6/cs185s/public/week6/telomere_ms.mzXML
+
+in XML format called mzXXML used for mass spec data.
+top- metadata
+middle-each peptide for mass spec 
+tandem MS- two scan levels
+1) trypsinied frgments (precursors)
+2)new smaller fragments of the precursors
+
+m/z ratio and corresponding intensiy- proportional abundance
+
+``cat /home/linux/ieng6/cs185s/public/week6/telomere_ms.mzXML| grep "scan num" | wc -l``
+used to find number of entries
+
+__3. Load PRIDE Inspector and visualize spectra__
+open PRIDE inspectr
+Now switch over to the PRIDE inspector. Go to Open -> Open Files -> and navigate to the file public/week6/telomere_ms.mzXML. It may take a minute or two to load.
+
+needed to change the config file to up from 
+  For example, if you computer has 2GB of RAM memory, you can change the
+#  pride.inspector.max.memory line to a maximum value of:
+#  2048                                 
+
+Click on the "spectrum" tab. The bottom window shows a list of every scan from this sample (only the first 100 are shown, you can load more in 100-scan batches with the Load Next button). The top window shows the spectra corresponding to that scan. Each peak represents an individual fragment. The y axis shows its abundance, and the x-axis shows its mass/charge ratio. Use PRIDE inspector (you may have to look around the window or try other tabs) to answer the following questions:
+
+__4. Convert and filter spectra___
+need to understand which peptides these ions correspond to 
+need to use a database to compare against
+the database is called mascot- predicted fragmentation spectra for known proteins. 
+free but max 1200 scans at a time
+for our spectra, reduce file size, take a subset of spectra. 
+``[cs185scu@ieng6-700]:~:500$ msconvert /home/linux/ieng6/cs185s/public/week6/telomere_ms.mzXML --filter "index [0,1000]" --mgf -e 300_500.mgf``
+
+keeps scan in index range and in a new simpler format 
+load it in the PRIDE inspector
+``scp cs185scu@ieng6.ucsd.edu:/home/linux/ieng6/cs185s/cs185scu/week6/PRIDE_Exp_Complete_Ac_31251.pride300_500.mgf Desktop``
+
+cat /home/linux/ieng6/cs185s/cs185scu/week6/PRIDE_Exp_Complete_Ac_31251.pride300_500.mgf| grep "PEPMASS" | wc -l
+1001
+
+__5. Search spectra against protein digest databases with mascot__
+use the MS interntet website
+use all the directions in the lab workbook
+
+__6. Analyse mascot results___
+M
+
+
+Part 2
+reconstruct the sequence of short peptide given its spectrum
+found most abundant comonent from he precursor 
+subject the ion to CID to fragment the petide and perform atandem mass spec to obtain its spectrum.
+
+__8. Examining the spectrum___
+head -n 20 /home/linux/ieng6/cs185s/public/week6/example_peptide.mgf
+BEGIN IONS
+PEPMASS=1958.194306
+CHARGE=1
+279.199249	14.431095
+281.310852	32.472736
+282.169342	13.603216
+284.34436	15.391637
+285.38028	24.586693
+286.143311	21.154419
+287.255981	86.080162
+288.306366	8.615821
+293.392548	17.971436
+294.264771	9.580256
+295.10849	54.944424
+296.462128	28.638002
+298.246399	69.348824
+305.284882	588.303589
+306.336243	130.561661
+307.260406	40.36562
+309.645081	53.653748
+
+week6:516$ cat /home/linux/ieng6/cs185s/public/week6/example_peptide.mgf |awk '/279.199249/,/1958.194306/'|wc -l
+1108
+  
+  minus 2 from that for start and end ions line
+  
+  cat /home/linux/ieng6/cs185s/public/week6/example_peptide.mgf |awk '/279.199249/,/1958.194306/'|sort -n -r -k2,2 | head -1
+768.640625	7950.795898
+
+__10. Programmaticaly determine the pepide sequence__
+``[cs185scu@ieng6-700]:~:504$ pepnovo -file /home/linux/ieng6/cs185s/public/week6/example_peptide.mgf -model_dir /home/linux/ieng6/cs185s/public/week6/Models -model CID_IT_TRYP
+``
+
+determines the peptide sequence
+probablistic network to model peptide fragmentationn events. 
+-file .mgf
+-model CID_IT_TRYP model fragmentation based on performing CID trypsinizd fragments. 
+-model_dir
+
+``#Index	RnkScr	PnvScr	N-Gap	C-Gap	[M+H]	Charge	Sequence
+0	-2.962	214.039	354.139	0.000	1958.384	1	PQELLSQLVQYTGK
+1	-2.963	219.327	304.358	0.000	1958.384	1	FQLELSQLVQYTGK
+2	-3.062	212.822	352.496	0.000	1958.384	1	VQELLSQLVQYTGK
+3	-3.071	215.658	304.358	0.000	1958.384	1	FQLLESQLVQYTGK
+4	-3.280	213.405	354.139	0.000	1958.384	1	LQPELSQLDQFTGK
+5	-3.297	224.921	304.358	0.000	1958.384	1	FQELLSQLVQYTGK
+6	-3.298	228.741	354.139	0.000	1958.384	1	LQVLQSLLEQFTGK
+``
+
+
+__11. Compare to the optimal spectrum.__
+
+using http://db.systemsbiology.net:8080/proteomicsToolkit/FragIonServlet?sequence=IAGIIKVIKSLIEQFTGK&massType=monoRB&charge=1&bCB=1&yCB=1&nterm=0.0&cterm=0.0&addModifType=&addModifVal=
+
+``Seq    #       B            Y         # (+1) 
+  I     1    114.09139   1958.20490   18 
+  A     2    185.12850   1845.12084   17 
+  G     3    242.14996   1774.08372   16 
+  I     4    355.23403   1717.06226   15 
+  I     5    468.31809   1603.97820   14 
+  K     6    596.41305   1490.89413   13 
+  V     7    695.48147   1362.79917   12 
+  I     8    808.56553   1263.73076   11 
+  K     9    936.66049   1150.64669   10 ``

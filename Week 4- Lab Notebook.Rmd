@@ -1,0 +1,372 @@
+# CSE 185 Lab Notebook - Week 4
+
+``rm -rf *``
+
+removes all the files from week 2 that use up space.
+
+use ctrl + d to log off ssh
+
+then log into ieng6 server this time
+
+if we are interestied in determining which genes and regulatory regions are most important for controlling the development of limbs and whether those regions of the genome might explain why some animals are missing limbs. Use RNAseqto quanitfy expression levels and visualise this data using a genome browser. limb vs non limb find genes specific to pathways controlling limb developments. 
+
+1) mouse early development
+
+``Helens-MacBook-Air:~ helenking$ ssh cs185scu@ieng6.ucsd.edu``
+
+First, take a look at the fastq files. Do not unzip them! See the UNIX tip below for how to deal with .gz files. What read length and how many reads were used for each experiment? Record the answer in your lab notebook and describe in the methods section of your report.
+
+**UNIX TIP**: Using a compression method like `gzip` or `bgzip` can save tons of space when dealing with huge files. Gzipped files aren't directrly human-readable. However, you can use the `zcat` command to write the contents of the file to standard output. For instance, to see the head of a gzipped file, you can do `zcat file.gz | head`. You can similarly pipe the output of `zcat` to other commands like `wc`.
+
+[cs185scu@ieng6-202]:week4:507$ ls
+
+[cs185scu@ieng6-202]:week4:509$ zcat FL_Rep1_chr5_1.fq.gz | head
+@SRR3950230.28085998/1
+TAGGGGAATGGCTTTTATCCAGAGTAGGATAGATGCAGTCAAACTCCTGG
++
+CCCFFFFFHHHHHJJJJJJJJJJJHIJJJJJJJJJJJJIJIJJJJJJJJJ
+@SRR3950230.23174323/1
+GTAAAACCAGGAGTTTGACTGCATCTATCCTACTCTGGATAAAAGCCATT
++
+CCCFFFFFHHHHHHIJJJJJJJJJJJJJIIJJJJJJJJJJJJJJJJJJJJ
+@SRR3950230.52178213/1
+
+
+Forelimb: FL_Rep1_chr5_*.fq.gz
+`zcat FL_Rep1_chr5_1.fq.gz | wc
+12717596 12717596 403111383`
+FL_Rep2_chr5_*.fq.gz
+`[cs185scu@ieng6-202]:week4:511$ zcat FL_Rep1_chr5_2.fq.gz | wc
+12717596 12717596 403111383`
+
+Hindlimb: HL_Rep1_chr5_*.fq.gz
+`[cs185scu@ieng6-202]:week4:512$ zcat HL_Rep1_chr5_1.fq.gz | wc
+15731352 15731352 498812263`
+HL_Rep2_chr5_*.fq.gz
+`[cs185scu@ieng6-202]:week4:513$ zcat HL_Rep1_chr5_2.fq.gz | wc
+15731352 15731352 498812263`
+
+Midbrain: MB_Rep1_chr5_*.fq.gz
+`[cs185scu@ieng6-202]:week4:514$ zcat MB_Rep1_chr5_1.fq.gz | wc
+13019900 13019900 412734722`
+MB_Rep2_chr5_*.fq.gz
+`[cs185scu@ieng6-202]:week4:515$ zcat MB_Rep1_chr5_2.fq.gz | wc
+13019900 13019900 412734722`
+
+`fastqc -o . /home/linux/ieng6/cs185s/public/week4/FL_Rep1_chr5_1.fg.gz /home/linux/ieng6/cs185s/public/week4/FL_Rep1_chr5_2.fq.gz`
+
+`fastqc -o . /home/linux/ieng6/cs185s/public/week4/HL_Rep1_chr5_1.fg.gz /home/linux/ieng6/cs185s/public/week4/HL_Rep1_chr5_2.fq.gz`
+
+`fastqc -o . /home/linux/ieng6/cs185s/public/week4/MB_Rep1_chr5_1.fg.gz /home/linux/ieng6/cs185s/public/week4/MB_Rep1_chr5_2.fq.gz`
+
+Keep .html output files.
+**Comment on anythig flagged as problematic in the methods section of your report.**
+
+2. RNAseq sequence alignment
+since we'd like to visualise the location of the reads compared to the reference transcriptome. The BAM files containing alignments can be found in the week4 directory. (*_chr5.bam)
+What program and command did he or she use to align the reads?
+What reference genome were the sequences aligned to?
+
+samtools -H /home/linux/ieng6/cs185s/public/week4/FL_Rep1_chr5.bam
+
+`@PG	ID:STAR	PN:STAR	VN:STAR_2.5.3a	CL:STAR   --runThreadN 4   --genomeDir mm10STAR   --readFilesIn FL_Rep1_1.fastq.gz   FL_Rep1_2.fastq.gz      --readFilesCommand zcat      --outFileNamePrefix FL_Rep1   --outSAMtype BAM   SortedByCoordinate`
+ID* program record identifier
+PN program name
+CL command line
+PP previous name
+DS description
+VN program version
+
+[cs185scu@ieng6-202]:week4:538$ samtools view /home/linux/ieng6/cs185s/public/week4/FL_Rep1_chr5.bam
+samtools view FL_Rep1_chr5.bam
+
+SRR3950230.51937641	403	chr5	3236732	1	50M	=	3236632	-150	CCAGCAAGGTCGTTATCACCAGGCTAAAGCTGGACAAGGACCGCAAGAAG	GGIIIIGGGGIHIGD9?*GGCECCEFIIGHCHGFIIIHFFAFDBDDD@@@	NH:i:3	HI:i:1	AS:i:98	nM:i:0
+
+Cigar Scores (attach print screen)
+
+N means skipped region from the reference-so would mean a deletion from the reference genome.
+
+3. Quantifying gene expression
+kallisto- quantify transcript abundance. avoid the alignment step all together. use simpler kmer counting approach based on de brujn graph.
+input is fastq file
+output- TPM (transcrips per million reads) for each transcript
+
+
+# Set variables used in each kallisto run
+PUBLIC=/home/linux/ieng6/cs185s/public/week4
+GTF=${PUBLIC}/gencode.vM11.primary_assembly.annotation.gtf
+KINDEX=${PUBLIC}/mm10_kallisto
+
+open using vi then the file name
+edit by writing i
+so save a quit :wq
+
+# Do a separate kallisto run for each dataset
+for prefix in FL_Rep1 FL_Rep2 HL_Rep1 HL_Rep2 MB_Rep1 MB_Rep2
+do
+    mkdir -p ~/week4/${prefix}
+    # TODO edit kallisto command to use 100 bootstrap rounds
+    kallisto quant -t 3\ -b --bootstrap-samples=100 \
+        -o $prefix --gtf $GTF -i $KINDEX \
+        ${PUBLIC}/${prefix}_chr5_1.fq.gz ${PUBLIC}/${prefix}_chr5_2.fq.gz
+done
+~                                                                                                                                                                                                           
+~                                                                                                                                                                                                           
+~                                                                                                                                                                                                           
+~                                                                                                                                                                                                           
+~                                                                                                                                                                                                           
+~                                                                                                                                                                                                           
+~                                                                                                                                                                                                           
+~                                                                                                                                                                                                           
+"run_kallisto.sh" [readonly] 16L, 556C
+
+`[cs185scu@ieng6-203]:scripts:507$ chmod +x run_kallisto.sh`
+use this to change the permissions
+`[cs185scu@ieng6-203]:scripts:508$ ./run_kallisto.sh`
+use this to run the script as an executable
+**UNIX TIP**: It would be efficient to run this script in the 'background' so that you can continue working in your terminal prompt. This can be done with multiple methods such as 'screen' or 'nohup'. When using screen you essentially open a new terminal screen in your current terminal window. To do this type `screen -S kallisto` and you will be in a new screen window. (You can type `pwd` to see where you are.) Now run the script `~/week4/scripts/run_kallisto.sh` and you should see the script running. You can now return to your main terminal window while the script runs in the "background screen", by pressing the keys "control" + "A" + "D" together. Type `screen -ls` to see the screens you have open. In 10 minutes, return to the kallisto screen to check on the progress of your script by typing `screen -r kallisto`.
+
+4.Visualising data using a genome-browser
+
+For genomic DNA sequences, we previously used samtools tview to visualize alignments. This is great if we are looking at genetic variation in one sample, but is less helpful for visualizing multiple samples and read abundances.
+
+Launch IGV. Type Nanog into the search box at the top. While IGV can directly visualize BAM files, we'll instead look at "counts" files (".tdf" format) which are much smaller. igvtools was already used to create .tdf files for you (from the entire genome, not just chromosome 5) in the week4 directory.
+
+bring the tdf into the desktop
+Helens-MacBook-Air:~ helenking$ scp cs185scu@ieng6.ucsd.edu:/home/linux/ieng6/cs185s/cs185scu/week4/FL_Rep1Aligned.sortedByCoord.out.tdf Desktop
+
+DOWNLOAD REFERNCE SEQ mm10 onto IGV
+[print screen]
+
+5. Comparing overall expresion patterns across datasets
+[cs185scu@ieng6-202]:scripts:520$ ls FL_Rep1
+abundance.h5  abundance.tsv  run_info.json
+
+abundance.tsv: a tab separated file giving the "TPM" values for each transcript
+abundance.h5: this is in a binary format (h5) that gives the bootstrap values. If you want to view this file you can use kallisto h5dump
+run_info.json: gives information about the parameters used to run kallisto
+
+santity checks- calculate the pairwise correlation
+[cs185scu@ieng6-202]:scripts:524$ paste ~/week4/scripts/FL_Rep1/abundance.tsv ~/week4/scripts/FL_Rep2/abundance.tsv | cut -f 5,10 | grep -v tpm | awk '(!($1==0 && $2==0))' | datamash ppearson 1:2
+0.9971084853118
+the concordance between the data sets
+datamash- columns 1 and 2 ?
+
+
+Part 2
+For the first half of the lab today, we'll continue where we left off analyzing expression from different tissues of a developing mouse to identify differentially expressed genes.
+zoom in on Shh- sonic hedgehog
+Depending on its concentration in different parts of a developing embryo, it can determine whether cells turn into different structures such as digits, limbs, or brain tissue.
+
+6. differential expression analysis
+sleuth uses te output of kallisto in R. 
+then copy and paste sleuth command into the command line
+
+Had to first copy my folders to from scripts to the parent folder.
+
+this will output significant to sleuth_results.ta
+``[cs185scu@ieng6-700]:week4:507$ head -n 11 sleuth_results.tab
+| target_id | test_stat             | pval        | qval     | rss         | sigma_sq    | tech_var    | mean_obs    | var_obs     | sigma_sq_pmax | smooth_sigma_sq | final_sigma_sq | degrees_free |   |
+|-----------|-----------------------|-------------|----------|-------------|-------------|-------------|-------------|-------------|---------------|-----------------|----------------|--------------|---|
+| 1         | ENSMUST00000075453.8  | 36.46866235 | 1.20E-08 | 6.03E-05    | 11.03149335 | 2.199321773 | 0.006976898 | 7.314126298 | 2.206298671   | 2.199321773     | 0.066411404    | 2.199321773  | 2 |
+| 2         | ENSMUST00000002708.4  | 30.54990984 | 2.32E-07 | 0.000165751 | 8.691417451 | 1.736550162 | 0.001733328 | 6.856900552 | 1.73828349    | 1.736550162     | 0.075621438    | 1.736550162  | 2 |
+| 3         | ENSMUST00000031131.10 | 29.17391752 | 4.62E-07 | 0.000165751 | 13.4892796  | 2.6826858   | 0.01517012  | 6.50498171  | 2.697855921   | 2.6826858       | 0.084274341    | 2.6826858    | 2 |
+| 4         | ENSMUST00000031249.7  | 30.66342251 | 2.20E-07 | 0.000165751 | 7.423626423 | 1.483782811 | 0.000942473 | 7.425543491 | 1.484725285   | 1.483782811     | 0.064475446    | 1.483782811  | 2 |
+| 5         | ENSMUST00000040576.9  | 29.36883608 | 4.19E-07 | 0.000165751 | 6.811258139 | 1.360954474 | 0.001297153 | 7.006080439 | 1.362251628   | 1.360954474     | 0.072378224    | 1.360954474  | 2 |
+| 6         | ENSMUST00000056355.8  | 30.10489133 | 2.90E-07 | 0.000165751 | 10.06578809 | 2.005915812 | 0.007241805 | 5.324694934 | 2.013157617   | 2.005915812     | 0.121450743    | 2.005915812  | 2 |
+| 7         | ENSMUST00000058045.4  | 29.31753167 | 4.30E-07 | 0.000165751 | 19.39340738 | 3.845712107 | 0.032969369 | 4.454825247 | 3.878681476   | 3.845712107     | 0.163105845    | 3.845712107  | 2 |
+| 8         | ENSMUST00000079324.13 | 29.16832347 | 4.64E-07 | 0.000165751 | 2.395687599 | 0.476441838 | 0.002695682 | 6.866038093 | 0.47913752    | 0.476441838     | 0.075415793    | 0.476441838  | 2 |
+| 9         | ENSMUST00000102553.10 | 30.90828988 | 1.94E-07 | 0.000165751 | 1.271566531 | 0.254161422 | 0.000151884 | 8.848309091 | 0.254313306   | 0.254161422     | 0.047860916    | 0.254161422  | 2 |
+| 10        | ENSMUST00000112707.2  | 30.96950782 | 1.88E-07 | 0.000165751 | 2.30781235  | 0.460665192 | 0.000897278 | 7.15523998  | 0.46156247    | 0.460665192     | 0.069371278    | 0.460665192  | 2 |
+
+
+How significant transcripts are there?
+  1934  27075 442370 sleuth_results.tab
+so, 1934 results are significant
+
+the top 10
+1) Transcript: Rpl21-202 ENSMUST00000075453.8
+Chromosome 5: 146,833,195-146,835,985 
+
+2)Transcript: Shh-201 ENSMUST00000002708.4
+Sonic hedgehog protein Sonic hedgehog protein N-product 
+Chromosome 5: 28,456,815-28,467,256
+
+3)Transcript: Uchl1-201 ENSMUST00000031131.10
+ubiquitin carboxy-terminal hydrolase L1
+Chromosome 5: 66,676,091-66,687,234 
+
+4)Transcript: Sparcl1-201 ENSMUST00000031249.7
+SPARC-like protein 1
+Chromosome 5: 104,079,111-104,113,733 
+
+5)Gene: Parm1 ENSMUSG00000034981
+Prostate androgen-regulated mucin-like
+Chromosome 5: 91,517,615-91,626,894
+
+6)Transcript: Nat8l-201 ENSMUST00000056355.8
+N-acetyltransferase 8 like
+Chromosome 5: 33,995,984-34,005,916
+
+7)Gene: Garem2 ENSMUSG00000044576
+GRB2-associated and regulator of MAPK protein 2
+Chromosome 5: 30,105,161-30,118,378 
+
+8)Transcript: Ubl3-201 ENSMUST00000079324.13
+ubiquitin-like 3
+Chromosome 5: 148,504,635-148,552,662 
+
+9)Transcript: Hmgn2-203 ENSMUST00000102553.10
+Non-histone chromosomal protein HMG-17
+Chromosome 4: 133,964,738-133,968,001
+
+10)Gene: Lrrc8b ENSMUSG00000070639
+Volume-regulated anion channel subunit LRRC8B
+Chromosome 5: 105,415,775-105,490,074 
+____
+
+The transcript ID is a big confusing number - use http://uswest.ensembl.org/Mus_musculus/Info/Index and search box
+for the top hits find the gene name and navigate to the gene in IGV and take screenshots
+use top 10 genes
+make sure to include Shh and the surrounding region
+
+visualise expression in a heat map
+
+
+7. Loading more info to IGV
+Launch IGV and load the previous session
+chr5:28,278,817-29,447,265.
+
+We'd like to identify potential regulatory regions for the differentially expressed Shh. ChIP-seq data usueful for identifying putatitive regions in this region. Start by adding CHIP-seq datasets
+
+In public/week4 you'll find https://genome.ucsc.edu/FAQ/FAQformat.html#format1.8 files. For ChIP-seq experiments for H3K27ac and H3K4me1 are falling are they near gene regions. 
+
+moved them all to the desktop
+
+one more track Pylop track which gives a per-base pairmeasure of sequence conservation across species. Get the PhyloP track from the genome.ucsc.edu.  
+Use the Table Browser (Tools > Table Browser) to download the PhyloP track for our region of interest. From the home page, select "Tools->Table Browser". use the dropdown boxes to select the mouse mm10 genome build. Additionally choose the following options:
+
+Group: Comparative Genomics
+Track: Conservation
+Table: 60 Vert. Cons (phyloP60wayAll)
+Region: position chr5:23414443-36455956
+Filter: edit and select "Limit data output to" 10 million lines otherwise the output will be truncated
+Output format: custom track
+Output file: put a reasonable filename (e.g. phyloP60wayAll_mm10_Shh_region.wig) After you click "get output" make sure "DATA VALUE" is selected on the next page, then click "Get custom track in file" which will download the file to your computer's default download location
+
+What regions have the highest PyloP scores?
+
+Are there highly conserved regions that are no protein coding?
+yes because no protein coding regions can be enhancer or repressorr regions.
+___
+
+8. Zooming in on ZRS
+Use IgV to zoom in on  chr5:29,314,718-29,315,770  ZRS (Zone of polarizing activity regulatory sequence).
+Histone modifications- increased H3K4me1 and H3K27ac throughtout the whole region with no RNA. So significantly upregulated region but, not transribed for protein formation.
+Conservation patterns- looking at PhyloP file, shows there is conservation of this sequence across species types. 
+Well conserved across species. For which tissues does it look like a putative enhancer region? it looks like enhancer for HL and FL vs the brain as the brain has got no or little H3K27Ac and H3K4me1 in the ZRS.
+
+9. multiple sequence alignment of enhancer sequences
+[cs185scu@ieng6-700]:week4:518$ cat /home/linux/ieng6/cs185s/public/week4/zrs_sequences.fa
+>human_zrs chr7:156,791,087-156,791,875 (hg38)
+aactttaatgcctatgtttgatttgaagtcatagcataaaaggtaacataagcaacatcctgaccaattatccaaaccatc
+cagacatccctgaatggccagagcgtagcacacggtctgtaggattaagaggttaactcctataacttcaaacaaagt
+gcctgataataaaagcaaaaagtacaaaattttaggtaacttcctttcttaattaattggactgaccaggtggaagcgaa
+gagttctgtgctggtgcttggaatgtctataaagctgagcaacatgacagcacaatagaggaggaacaaagattttttt
+aatatgtttctatcctgtgtcacagtttgaaattgtcctggtttatgtcccttttggcaaacttacataaaagtgaccttgtact
+gtattttatgaccagatgactttttccccccagtggctaatttgtatcaggcctccatcttaaagagacacagagtgagta
+ggaagtccagcctctgtctccacgagctttcattgcattctttcattatttttgctcgttttttgccactgatgatccataaatt
+gttggaaatgagtgattaaggaagtgctgcttagtgttagtggcacatgcgcatatttggcctggttctggtgggtgag
+aggaaatcacagacaaaagggaagcccctgctgggaaccctgcaaggaaatttaacttgggtcatgttttgatcttagt
+gtttattacagaaaatgaagccatatctcactaactattgttacgtgttaatttgattttcc
+>mouse_zrs chr5:29,314,881-29,315,667 (mm10)
+tactttaatgcctatctttgatttgaagtcctggcataaaacttaacataatgacagcaacatcctgaccaattatccaaac
+catccagccatcctagagtgtccagaacctcacacatgatctataggattaagaggttagctcctgtaacttcaaacaaa
+gtactttcataataaaagtaaaatgcacaaaatctgaggtcacttcctctcttaattagttgcactgaccaggtggaggc
+gaagcactttgctgggctcaggctgtccataaagccaagcaacatgacagcacaatagaggaggaactaagatcgtt
+ttaatatgtttctatcctgtgtcacagtttgagattgtcctggtttatgtcgcttttggcaaacttacataaaagtgaccttgt
+actgtattttatgaccagatgacttttcccctcagtggctaatttgtctcaggcctccatcttaaagagaagagagtagga
+agtccagcctgggactccatgagcgttcattggattctttcattatttttgcttgttttttttgccactgatgatccataaattg
+ttggaaatgagcgattcaggaagtgctgcttagtgttagtggcaaatgcgcaaactcagtctggttctgctgggtgaaa
+ggaaatcacaggcaagaggaaggctcctgctgggaaccttgcaaggaaatttgacttgggcatgttttgatcttggca
+tttattacagaaaatgaagtcatatctcactaactgttgctatgtgttaatttgattctcc
+>cow_zrs chr4:119,026,017-119,026,791 (bosTau8)
+cacattaatgcctatttttgatttgaagttgtggcataaaatttaacataagtgacagcaacatcctgaccaattaccgaa
+gccatccagacatccccaaatgtccagaacatagcacacggtctgtaggattaagaggttaactcctcgaacttcaaac
+aaagtgcttgataataaaagcagaaaggacaaaatctgaggtaacttcctttcttaattaattagactggccaggtgga
+agcgaagagctgggtgccagtgcttgcaaggcctataaagctgagcaccgtgacagcacaatggaggaggaacag
+acatcgctttaatatgtttctatcctgtgtcacagtttgaaattgtcctggtttatgtcccttttggcaaacttacataaaagtg
+accttgtactgtattttatgaccagatgactttttccccccagtggctaatttgtatcaggcctccatcttaaaaagacacag
+aaatgagtaggaagtccattgcattctttcattatttttgctcgtttttgccactgtgatcatccataaattgttggaaatgag
+tgattgaggaagtgctgcttagtgttagtggcacatgcgcatatttggcctggtttttgtgggtgagaggaaatcacatg
+caaaaagggaagctcctgctggggacctttcaaggaaatttaccttgggtctcgttttgatcttggtgtttattacagaaa
+atggagtcatatctcactagctattgttatgtgttaatttgattttcc
+>dolphin_zrs JH482689:127,180-127,973 (turTru2)
+cacgttaatgcctgtcttgggtttgaagtcatggtataacatttaacataagtgacagcaacatcctgaccaattacctaa
+gccatccagacacccccagatgtccagaacatagcacacggtctgtaggattaagaggttaactcctagaacttcaaac
+gaagtgcttgataataaaagcaaaaagtacaaaatctgaggtgacttcctttcttaattaattagactggccaggtgga
+agccaagagctgggtgcggtgcttggaaggtctataaagctgagcaccgtgacagcacggtagaggggagcagac
+atcgctctaatgtgtttctgtcctgtgtcacagtttgaaattgtcctggtttatgtcccttttggcaaacttacataaaagtga
+ccttgtactgtattttatgaccagatgactttttccccccagtggctaatttgtatcaggcctccatcttaaagagacacaga
+aatgagtaggaagtccagctccgtctcagtgaactttcattgcattctttcattatttttgctcgttcttgccactgatcatcc
+ataaattgttggaaatgagtgattaaggaagtgctgcttagtgttagtggcacatgcgcatatttgcatggttttttgtgg
+gtgagaggaaatcacatacaaaaagggaaactcctgctgggaacctttcagggaaatttaccttgggttctcgttttga
+tcttggtgtttattacagaaaatggagtcatatctcactaactattgttatgtgttaatttgattttc
+>python_zrs 13056-13925 (Python_molurus_bi vittatus-5.0.2-2355.6; Genebank ID AEQU02119490.1)
+gctatataaacataactgttatgtgatgggaagacctgaacaagttcttatggaagtaattttgaaacccaattgtgcaa
+agcatccagacatcttagtgtttggcacccaatgcagaaagtctgtggattgagagcttaaccaagaacatcaaaaga
+gaatgcttgataataaaagcaaatggtagcgaaatttttaattaattaggtaggccaggtggaagtgaagaggcccgt
+ctataaagctgtaaagctgagcaacatgacagcacaatggaggaggaacaaagattgttttaatatacttctatcctgtc
+tcacagtttgaaattgtcctggtttatgtcccttttggcaaacttacataaaagtgactgtgtactgtattttatgaccagat
+gactttccccccttttctggctaatttgtatcaggtccccagtattaaagagacacagaaacgagtaggaagtcgaaagc
+agtatgtctcgaggacgcttcattgcattctttcattaggttttgcttgtttttgccactgatcatccataaattgctggaaat
+aagtgattaaggaagtgctgcttagtgttagtggcacatagacgttcatggtaacgctttttttctgagtgaaaggaaat
+cagatattgctgaagcaaaaaggaagaatcctgctgggagcttttcatggaaatttaacttgcataatgttttgatcttaa
+tgtttgttacaaaaacatacagcagtatttcaccaggtgctgtgtgtcaagtattaactccatcactg
+>rattlesnake_zrs 3119-4036 (Crotalus mitchellii pyrrhus CMI_contig_3799; Genebank ID JPMF01003770.1)
+tactcagtggagaaaatctgtggattcagagcttaaccaagaacatcaaaagaggatgcttaataaaggacataaatt
+ctaactattgcatggtggtgcagtggttagaatgcaatattgcaggatattgccagcagttcgattctgacctgctcaag
+gttgactcagccttccatctttccaaggtcagtaaagtgaggacccaagtctaagtgctattgctgtggctataaaccatt
+agctaataaaagcaaatggtagcaatttctttaattaattaggccagatgttcagctgtgaagctgaacaacatgacag
+cacaatggaagaagagcacacattgttttaatatacttctatcctgttttacaatttcaaattgtcctaatttatgttccttttg
+gcaaacttaataaaagtgactgcattgtattttgtgatcagatgactttgtccccttttctagctaatttatatcaggccttca
+ttagtaaagagacagaaaaagaagtaggaagcaaaagcaataggtctcaaggacacttcattgcattcctttattagg
+gcttgcttattttttggccactgacaatttataaattgctggaaataagtgattaaggaagtgtgttgtttagtgttagtggt
+acatagatgtttcttggtgcagcctttttttgtgaatgaaaggaaaacagatactggaagaaggaagaatcctgctggg
+aacttttcaaggaaatttagcctacataatgttttgatcttaatgtttgttacaaaaaacatacagcagtattttaccagattc
+tgtatgtcaactaaccccatcactg
+>cobra_zrs 589764-590624 (Ophiophagus hannah scaffold183.1; Genebank ID AZIM01000183.1)
+tgaacggaatataatcttcctactcatgttctcccaacaacagggagtcaggcagttgatagtacaggtaatataagaa
+gactttggtagtgaatagatgcaggtaggtagatgcaaatccctgtatctgaagttgaccccggggataaattggagg
+tactagttggtattcagataatccttgacttaatgaccacaattgagcccaaaatctcctggtttatgttccttttgccaaact
+tatataaaagtgactgcactatatttatgatcagatgagtttaatccccttttatagctgatgtcaggccctcactattaaag
+agacagaaaaacaagtaagaaatcaaaagaaatatgtctcaatgacgcttcattgcattccttcattagggttgcttaat
+gtctatggagattctcagtcatccaggtcatggttgtcccaaaagtgctttttcaataggcaactggactttgttttttcttcg
+aagtcgtttcgcttcttatccaagaagcttcaattttttgccgttgacaatccataaattgctggaaataaaggattaagga
+agtgctgcttagtgttagtggcacatagatgttcatctgtgaatgaaaggaaattagatattggagaaacaaaaacga
+agaatcctgctgggagtttttccaggaaatttagcctgcataatattttgatcttaatgtttgttacaaaagatacagcattc
+atttgttacaaaatgaaacaggtgctgtatgtcaattataaccctatcactg
+>boa_zrs 
+gctatataagcataactgttatatgatgggaagacttggacaagttcttatggaagtaattttacaacccagttgtgcaaa
+gcatccagacatctctgtttggcatccagtgcagaaagtctgtggattgagagtttaaccaagaacatcaaaagagaat
+gcttgataataaaagcaaatggtagcaaaaattttaattaattaggtaggccaggtggaagtgaagaggccagtctat
+aaagctgagcaacatgacagcacaatggaggaggaacaaagcttgttttaatatacttctatcctgtctcacagtttgaa
+attgtcctggtttatgtcccttttggcaaacttacataaaagtgactgtgtactgtattttatgaccagatgacttgtccccct
+tttctggctaatttgtatcaggcccccagtattaaagagacacagaaatgagtaggaagccaaaagcaatatgtctcaa
+ggacagttcattgcattctttgattaggttttgcttgttttttgccactgatcatccataaattgctggaaataagtgattaag
+gaagtgctgcttagtgttagtggcacatagatgttcttggtaaagctttttttgtgagtgaaaggaaatcagatattgcag
+aaacaaaaaggaagaatcctgctgggagcttttcaaggaaatttaacttgcataatgttttgatcttaatgtttgttacaa
+aaacatacagcagtattttaccaggtgctgtgtgtcaagtaataaccccatcactg[cs185scu@ieng6-700]:week4:519$ 
+
+[cs185scu@ieng6-700]:week4:615$ mafft /home/linux/ieng6/cs185s/public/week4/zrs_sequences.fa > zrsOutput.fa
+
+You should be able to find at least one region that is deleted in all snakes but conserved across all other species. Based on what we've learned about enhancer regions, hypothesize why this deletion might lead to a loss of legs in snakes. Discuss your hypothesis in your lab report.
+
+
+
+
+
+
+
+
+

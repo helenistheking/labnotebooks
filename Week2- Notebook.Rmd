@@ -1,0 +1,208 @@
+Week 2 Lab Notebook
+** 15th April**
+
+the HI profile for the strain of the roomate is closely related to the H3N2 strain 
+
+secion 1 git
+
+[cs185scu@ieng6-202]:~:182$ git clone https://github.com/cse185-week2-helenistheking.git week2
+
+[cs185scu@ieng6-202]:week2:188$ emacs CSE185_Week2_LabNotebook.md
+*method of doing command line text editor*
+
+[cs185scu@ieng6-202]:week2:189$ git add CSE185_Week2_LabNotebook.md
+*adds a file to the git repositry*
+
+[cs185scu@ieng6-203]:week2:225$ git commit -a -m"Adding lab notebook for Week 2"
+*-m give discriptive message abot the commin -a should be used everytime you commit* 
+
+[cs185scu@ieng6-203]:week2:226$ git push
+*to make changes visible on githib* use pull command to updte the clone in your repositry.
+
+section 2
+***UNIX NOTE a pipe or | is used after a command to send the output of one command as input to the next|***
+
+[cs185scu@ieng6-203]:week2:231$ cat roommate.fastq | awk 'NR%4==0 {print length}' | sort -n | uniq -c
+*cat  outpts the cotents of a file* 
+*awk:NR%4 means number of recors modulo 4. each read has 4 lines*
+*sort output lines*
+*uniq returns only unique lengths and the -c flag*
+151- longest read
+
+section 3
+
+download The reference sequence for the influenza hemagglutinin gene from NCBI
+[cs185scu@ieng6-203]:week2:237$ efetch -db nucleotide -id KF848938.1 -format fasta > KF848938.1.fasta
+
+[cs185scu@ieng6-203]:week2:239$ bwa index KF848938.1.fasta
+
+[cs185scu@ieng6-203]:week2:240$ bwa mem KF848938.1.fasta /pathto/roommate.fastq | \
+
+
+[cs185scu@ieng6-203]:week2:244$ bwa mem KF848938.1.fasta /home/linux/ieng6/cs185s/public/week2/roommate.fastq |     samtools view -S -b |     samtools sort > roommate.bam
+
+[cs185scu@ieng6-203]:week2:245$ samtools view -f4 roommate.bam | wc -l
+3430
+
+[cs185scu@ieng6-201]:week2:252$ samtools index roommate.bam
+index the bam file
+?? what is the use of index??
+
+[cs185scu@ieng6-201]:week2:252$ samtools mpileup \
+    -d 1000000 \
+    -f KF848938.1.fasta \
+    roommate.bam > roommate.mpileup
+*set the depth limit to something higher than our coverage using -d*
+
+[cs185scu@ieng6-201]:week2:255$ java -jar /home/linux/ieng6/cs185s/public/tools/VarScan.jar mpileup2snp \
+>     roommate.mpileup \
+>     --min-var-freq 0.95 \
+>     --variants --output-vcf 1 > roommate.vcf
+*run Var Scan on the mpile up. Look for positions where most of the viruses infecting your roomate differ from te reference. mayB something wouldn't have shown up in the HI test.*
+
+1665 bases in pileup file
+7 variant positions (7 SNP, 0 indel)
+
+[cs185scu@ieng6-201]:week2:270$ cat roommate.vcf | grep -v "##" | awk '{print $1, $2}'
+okay view the file using cat. grep -v removes all lines beginning with # and then using a command within
+#CHROM POS
+KF848938.1 72 
+KF848938.1 117 
+KF848938.1 595
+KF848938.1 774
+KF848938.1 1008
+KF848938.1 1260
+KF848938.1 1339
+_only looking at one gene that has mutations that has allowed_
+
+go on NCBI download the FASTA sequence for KF848938.1
+Then upload to WebDSV, manually.
+
+
+A72G ACA>ACG Thr24Thr synonymous
+C117T GCC>GCT Ala39Ala synonymous
+G595T GCA>TCA Ala119Ser missense
+T774C TTT>TTC Phe258Phe synonomus
+T1008G GCT>GCG Ala336Ala synonomus
+A1260C CTA>CTC Leu420Leu synonous 
+T1339C TTG>CTG Leu447Leu synonmous
+
+Section 5- look for rare variants
+[cs185scu@ieng6-201]:week2:277$ java -jar /home/linux/ieng6/cs185s/public/tools/VarScan.jar mpileup2snp \
+>     roommate.mpileup \
+>     --min-var-freq 0.001 \
+>     --variants --output-vcf 1 > roommate_rare.vcf
+
+lowered the min-var-freq value to 0.001 
+
+[cs185scu@ieng6-201]:week2:282$ cat roommate_rare.vcf | grep -v "##" | awk '{print $2, $4, $5, $10}'|awk -F '[ :]' '{print $1, $2, $3, $10}'
+POS REF ALT 
+38 T C 0.45%
+72 A G 99.97%
+117 C T 99.91%
+216 A G 0.18%
+218 A G 0.2%
+254 A G 0.28%
+276 A G 0.37%
+295 C T 0.23%
+319 T C 0.22%
+409 T C 0.26%
+495 C T 1.04%
+524 A G 0.19%
+595 G T 99.94%
+691 A G 0.17%
+722 A G 0.19%
+774 T C 99.96%
+910 G A 0.73%
+915 T C 0.27%
+987 A G 0.25%
+1008 T G 99.9%
+1043 A T 0.19%
+1086 A G 0.26%
+1100 T C 0.2%
+1260 A C 99.9%
+1293 G A 61.82%
+1339 T C 99.97%
+1460 A G 0.23%
+1473 C T 0.23%
+1517 A G 0.22%
+1521 G A 1.12%
+1604 T C 0.25%
+
+Section 6
+
+_You cannot tell the difference between sequencing errors and real mutations in the HA gene from rare members of the viral quasispecies_
+_Next step is sequencing the genomes of thhree different H3N2 influenza viruses_
+_Any mutations you detect in the control samples, which don't contain any true genetic variants, must be due to sequencing errors an what's a true variant in the data from your roommate._
+re 
+
+__[cs185scu@ieng6-201]:week2:292$ wc /home/linux/ieng6/cs185s/public/week2/SRR1705858.fastq
+ 1026344  2052688 95286078 /home/linux/ieng6/cs185s/public/week2/SRR1705858.fastq
+[cs185scu@ieng6-201]:week2:293$ wc /home/linux/ieng6/cs185s/public/week2/SRR1705859.fastq
+  933308  1866616 86554542 /home/linux/ieng6/cs185s/public/week2/SRR1705859.fastq
+[cs185scu@ieng6-201]:week2:295$ wc /home/linux/ieng6/cs185s/public/week2/SRR1705860.fastq
+  999856  1999712 92887574 /home/linux/ieng6/cs185s/public/week2/SRR1705860.fastq__
+  
+  total=274728194
+  
+ [cs185scu@ieng6-201]:week2:298$ wc /home/linux/ieng6/cs185s/public/week2/roommate.fastq
+  1146956   2293912 106490754 /home/linux/ieng6/cs185s/public/week2/roommate.fastq
+  _outputs similar number of reads but use read length of 151 even though we know read length are shorter_
+  
+  
+_attempt to do a weak ass for loop_
+for x in SRR1705858, SRR10705859, SRR1705860; do  let's run some commands on $x; done  bwa mem KF848938.1.fasta /home/linux/ieng6/cs185s/public/week2/$x.fastq > $x.sam; done
+
+Instead do it over three times- align the file
+SRR1705858, SRR10705859, SRR1705860; 
+[cs185scu@ieng6-203]:week2:323$ bwa mem KF848938.1.fasta /home/linux/ieng6/cs185s/public/week2/SRR1705860.fastq > SRR1705860.sam
+
+*create bam files from sam file 
+using this protocol and repeating for each 58,59 and 60*
+__samtools view -S -b SRR1705860.sam | samtools sort  > 60.bam_
+
+*if you wanted to visualise*
+__samtools index 58.bam
+samtools tview 58.bam KF848938.1.fasta__
+
+pile up next
+Repeat all these steps with each of the three files 
+__samtools mpileup -d 1000000 -f KF848938.1.fasta 60.bam > 60.mpileup __
+
+Section 7
+then do VarScan already uploaded so just do 
+__java -jar VarScan.jar mpileup2snp 58.mpileup --min-var-freq 0.0001 --variant --output-vcf 1 > VarScan58.vcf __
+
+[cs185scu@ieng6-203]:week2:367$ java -jar VarScan.jar mpileup2snp 58.mpileup --min-var-freq 0.0001 --variant --output-vcf 1 > VarScan58.vcf
+
+Only SNPs will be reported
+
+28 variant positions (28 SNP, 0 indel)
+
+24 variant positions (24 SNP, 0 indel)
+
+27 variant positions (27 SNP, 0 indel)
+
+[cs185scu@ieng6-203]:week2:382$ cat VarScan58.vcf | grep -v "#" | awk '{print $2, $4, $5, $10}' | awk -F '[ :]' '{print $1, $2, $3, $10}'
+
+
+Section 8
+Compare the control results to your roomate results 
+|POS.|REF|ALT|FREQ|
+|--|--|--|--|
+|105|A|G|0.94%|
+
+WebDSV to identify the original amino acid at each position, position number in the protein sequence, and the amino acid resulting from the mutation.
+
+Discussion question: Are there any positions reported by VarScan in all 3 of the reference sequences? You could, in principle, also calculate the average and standard deviation between the 3 reference replicates for one position at a time. Which kind of average and standard deviation do you think is better for error correction?
+
+Section 9
+Epitope mapping
+
+An epitope is the part of an antigen molecule to which an antibody attaches itself.
+
+Epitope A (residues 122, 124, 126, 130–133, 135, 137, 138, 140, 142–146, 150, 152, 168) presents one point mutation at residue 131.
+Epitope B (residues 128, 129, 155–160, 163, 165, 186–190, 192–194, 196–198) presents three point mutations at residues 155, 156, and 186.
+Epitope C (residues 44–48, 50, 51, 53, 54, 273, 275, 276, 278–280, 294, 297, 299, 300, 304, 305, 307–312) presents one point mutation at residue 50.									
+Epitope D (residues 96,102,103,117,121,167,170–177,179,182, 201, 203, 207–209, 212–219, 226–230, 238, 240, 242, 244, 246–248) presents no mutations. 											
+Epitope E (residues 57, 59, 62, 63, 67, 75, 78, 80–83, 86–88, 91, 92, 94, 109, 260–262, 265) presents two point mutations at residues 75 and 83.

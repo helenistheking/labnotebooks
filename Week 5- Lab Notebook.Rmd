@@ -1,0 +1,210 @@
+# CSE 185 Lab Notebook - Week 5
+
+terminology clairfication- 
+sample=individuals marker=SNP=variant
+phenotype=trait 
+cohort- set of samples
+
+Today-perform a GWAS for samples with blue vs brown eyes. 
+Thursday- implement a program to predict eye color from a handful of SNOs
+
+Setting up
+``[cs185scu@ieng6-700]:week4:508$ git clone https://github.com/cse185-sp18/cse185-week5-helenistheking.git week5``
+
+__Intro to the plink__
+GWAS- genome wide assisted study. use a SNP genotype array and cleaned the dataset to remove dplicates ad problematic makrers. 
+use plink to- operations on genetic datasets. type of files used by plink. 
+use --file as an arguement, if binary use --bfile
+.ped contains all the genotype information
+.map SNP/variant info 
+.fam
+
+
+
+
+How many samples are in our cohort?
+wc lab5_gwas_eyecolor.ped
+      261 
+      the number of samples
+      
+What is the frequency of brown vs. blue eyes in our samples?
+`cat lab5_gwas_eyecolor.phen | cut -f 3 | sort | uniq -c
+    104 1
+    157 2`
+    
+How many SNPs are included in our dataset? Record the commands you used to determine this in your lab notebook. Note the results in the methods section of your lab report.
+`wc lab5_gwas_eyecolor.map
+  911774`
+  
+  
+  
+  ___1. Analysing population structure__
+  It turns out our sample was collected from individuals with different ethnic backgrounds. As we will learn in class on Wednesday, using a heterogenous sample may introduce spurious signals in our GWAS. We'd like to control for population structure in our cohort. For this, we'll use something called Principal Component Analysis (PCA). PCA looks for groups of features (in this case, SNPs) that explain the most variation in our data. You can think of it as clustering our samples based on their ancestry._
+  
+  `plink --file /home/linux/ieng6/cs185s/public/week5/lab5_gwas_eyecolor --pca 10 --out lab5_pca_eyecolor`
+  
+  output file 
+  make a scatter plot PC1 vs. PC2.
+  
+___2. Performing a basic GWAS___
+
+using the genotype to make the observed and expected allele counts. use the observed vs expected allele counts to create a chi squared test. this forms pvalues to test the null hypothesis.
+
+to do odds ratio then you have to work out the relative amount of cases vs controls. extend that compariosn between the two alleles in the controls and the cases to every possible SNP independently
+
+
+`plink \
+      --file /home/linux/ieng6/cs185s/public/week5/lab5_gwas_eyecolor \
+      --pheno /home/linux/ieng6/cs185s/public/week5/lab5_gwas_eyecolor.phen \
+      --out lab5_gwas_phen \
+      --logistic \
+      --allow-no-sex'
+
+   `plink \
+      --file /home/linux/ieng6/cs185s/public/week5/lab5_gwas_eyecolor \
+      --pheno /home/linux/ieng6/cs185s/public/week5/lab5_gwas_eyecolor.phen \
+      --out lab5_gwas_phen_var \
+      --logistic \
+      --allow-no-sex \
+      --covar lab5_pca_eyecolor.eigenvec '
+      
+      cat lab5_gwas_phen_var.assoc.logistic | awk '($5=="ADD" || $0~/CHR/)' > lab5_gwas_phen_var.assoc.logistic.no_covars
+
+to find 
+`week5:504$ awk '{ if($9 <= (5*10e-8)) { print }}' lab5_gwas_phen_var.assoc.logistic.no_covars       
+  15                                        rs1470608   28288121    1        ADD      261     0.1111       -5.512    3.557e-08
+  15                                        rs7170869   28288748    1        ADD      261     0.1111       -5.512    3.557e-08
+  15                                        rs1129038   28356859    1        ADD      261    0.01011       -7.306    2.749e-13
+  15                                       rs12913832   28365618    1        ADD      261   0.008607       -7.293    3.039e-13`
+    
+   using the --covars removes the the covariates specific lines from the output results
+   pulling out the the significant SNPs
+   
+   
+   
+week5:520$ awk '{ if($9 <= (5*10e-8)) { print }}' lab5_gwas_phen_var.assoc.logistic.no_covars | wc
+     15
+     
+     so 15 passed the genome wide significance test. 
+     
+     (11 rows for each of the _var.assoc.logistic)
+     
+ week5:522$ awk '{ if($9 <= (5*10e-8)) { print }}' lab5_gwas_phen.assoc.logistic | wc
+     32 
+
+the pvalue means the probability of obstaining a result at least as extreme as what we observed given that the null hypothesis is true. 
+bonferroni correlaion- adjust pvalue threshold by number of tests to correct for multiple hypotheseses. perform 1 test for each SNP but many are correlate with each other. suggested for genome wide sig is less than 5*10^-8. 
+
+
+3. Visualizing GWAS results
+must use assocplots python package for this
+generate QQ plots and manhattan plots for the two GWAS (one with and with without covariates)
+
+QQ PLOTS  two distrubutions roughly the same? x-expected values 
+y-observed values
+manhattan plots are x axis- position along the chromosomes and y is the long 10 value- so significantly more significant
+nearby SNPs are highly correlated creating a skyscrapper pattern due to linkage disequilibrium
+
+`[cs185scu@ieng6-700]:week5:532$ python ./scripts/gwas_plotter.py lab5_gwas_phen.assoc.logistic plotGWAS`
+
+`[cs185scu@ieng6-700]:week5:532$ python ./scripts/gwas_plotter.py lab5_gwas_phen_var.assoc.logistic.no_covars plot2GWAS`
+
+use no_covars gwas as has the closest linear relationship with the qq plo. "high rises" in the Manhattan plot. 
+
+plink --file /home/linux/ieng6/cs185s/public/week5/gwas_eyecolor --clump lab5_gwas_phen_var.assoc.logistic.no_covars --clump-field P --clump-p1 0.0001 --clump-p2 0.01 --clump-r2 0.5 --clump-kb 250 --out high_rises
+
+covariants diverse ethnic sample- the ethnicity that would effect the phenotype 
+adding in the covariants to clump the similar ancestral data together
+
+**UNIX TIP** use less as a way of opening the file
+
+[cs185scu@ieng6-700]:week5:503$ less high_risers.clumped 
+
+these SNPs might not be the same as the given list due to the pvalue
+the only SNP that is the same is the first one 
+
+[cs185scu@ieng6-700]:week5:513$ awk '{ if($5 <= (5*10e-8)) { print }}' high_risers.clumped
+  15    1                                        rs1129038   28356859   2.75e-13        1      0      0      0      0      1 rs12913832(1)
+  15    1                                        rs1470608   28288121   3.56e-08       11      0      0      0      0     11 rs749846(1),rs3794604(1),rs4778232(1),rs1448485(1),rs16950821(1),rs8024968(1),rs7177686(1),rs6497253(1),rs7170869(1),rs1375164(1),rs6497254(1)
+  15    1                                        rs7179994   28323770   3.56e-07        1      0      0      0      0      1 rs1597196(1)
+  15    1                                        rs1667394   28530182   4.44e-07        3      0      0      0      0      3 rs3935591(1),rs916977(1),rs8039195(1)
+
+
+__5- eye color prediction model and data__
+irisplex paper  two models for the two separate case control blue vs brown and the second is other vs brown taking into intercept term model, and the sum of the effect size of the model/SNP and the number of minor alleles in the individual genotype
+then rearrange it to find the probabiliyy of the p blue and p other 
+there is a table of 6 SNPs converted to hg19 coordinates
+
+--this part of the lab going to be looking .vcf file with smaller set of samples independent from orginal GWAS
+#gives header info
+each row for single variant
+ID columns corresponds to same dbSNP in table.
+
+| chrom | start    | rsid       | Minor allele |
+|-------|----------|------------|--------------|
+| 15    | 28365618 | rs12913832 | A            |
+| 15    | 28230318 | rs1800407  | T            |
+| 14    | 92773663 | rs12896399 | G            |
+| 5     | 33951693 | rs16891982 | C            |
+| 11    | 89011046 | rs1393350  | A            |
+| 6     | 396321   | rs12203592 | T            |
+
+use scp to move the .vcg.gz file
+'scp /home/linux/ieng6/cs185s/public/week5/lab5_pred_eyecolor.vcf.gz cs185scu@ieng6.ucsd.edu:/home/linux/ieng6/cs185s/cs185scu/week5'
+
+get a header row listing 
+'bcftools query -l lab5_pred_eyecolor.vcf.gz | datamash transpose | awk '{print "ID\t"$0"\t"}' > lab5_pred_eyecolor.tab'
+bcftools <- used to wrange VCF files to any format you like
+-l flag use to simplify the list
+
+extract the ID and sample genotypes for each SNP
+'bcftools query -f "%ID\t[%TGT\t]\n" lab5_pred_eyecolor.vcf.gz | sed 's/|//g' >> lab5_pred_eyecolor.tab'
+used to output the genotype info. -f how things are output %ID column [] output PER SAMPLE [%TGT\t] print the genotype of each sample
+
+transpose
+'cat lab5_pred_eyecolor.tab | datamash transpose > lab5_pred_eyecolor_transpose.tab'
+datamash transpose will make rows to columns and columns to rows
+so one sample per column
+
+Note, these SNPs are sorted by genomic coordinate, so are not in the same order as the SNPs in the table above or in the example spreadsheet! You might want to use awk to rearrange the columns before moving forward.
+awk '{print $1, $5, $4, $3, $6, $2, $7}' lab5_pred_eyecolor_transpose.tab > lab5_pred_eyecolor_sorted.tab
+
+
+___6.Eye color prediction____
+
+[cs185scu@ieng6-700]:week5:506$ wc lab5_pred_eyecolor_sorted.tab
+ 208 1449 5430 lab5_pred_eyecolor_sorted.tab
+ 
+ [cs185scu@ieng6-700]:week5:508$ cat lab5_pred_eyecolor_sorted.tab
+
+___7.Comparison of predictions by population
+
+CEU                                                               
+blue-0.6313029304	other-0.1300114549	brown-0.2386856147	total-1	
+TSI
+blue-0.2501047608	other-0.1666767793	brown-0.5832184599 total- 1
+Which group is more likely to have blue eyes?CEU or northern european.
+Does this match with what is known about eye color frequencies in those populations? (Note, not all of these samples has genotyopes, so don't worry if some data is missing). 
+Add up to almost one in both data sets
+
+__8. Variant interpretation__
+that often the SNPs identified by GWAS are not themselves causal variants but might lie nearby truly causal mutations. 
+
+
+EC
+there is 3x2x2x1x1x1=12 possible ways to arrange the different genotypes of the child
+The child is most likely to have blue eyes
+blue- 0.540056947	other-0.1506096358   brown-0.3093334172
+
+| chrom | start    | rsid       | Minor allele |Protein coding region?| 
+|-------|----------|------------|--------------|----------------------|
+| 15    | 28365618 | rs12913832 | A            |HERC2 intron region   |
+| 15    | 28230318 | rs1800407  | T            |OCA2 exon region      |
+| 14    | 92773663 | rs12896399 | G            |intergenic region |
+| 5     | 33951693 | rs16891982 | C            |SLC45A2 exon region  |
+| 11    | 89011046 | rs1393350  | A            |TYR intron region  |
+| 6     | 396321   | rs12203592 | T            |IRF4 intron region |
+
+
+
+

@@ -1,0 +1,164 @@
+# the Analysis of Shh gene in Different Tissue and Species and its Enhancer Upregulation 
+##### Helen King
+
+## Abstract 
+For this lab report, we used tissue specific RNAseq data to find differentially expressed genes in foetal mice, focusing on the Shh gene which codes for sonic hedgehog protein that affets limb patterning. Then we also analysed CHIPseq data on histone marks (H3K9me and H3K27ac) and phylop to further analyse enhancer regions for Shh. We then looked at the cross species alignment of that region. 
+
+## Introduction 
+In this lab, we are trying to use tissue specific RNA seq data which displays the difference of protein expression. The 
+CHIPseq is the sequencing of the regions of the genome interacting due to a specific protein. Here we used this method to find the regions of the genome with increased histone marks, specifically two H3K9me and H3K27ac which promote enhancer regions specifically. The methods used include kallisto and sleuth which are less memory taxing and time consuming.
+
+This is important question to ask as the mutationss provide insight into the evolutionary biology when analysing the interspecies genome analysis. On top of this, when looking at the CHIPseq and RNAdata, you can understand the molecular biology of what controls the structure of the Ssh protein. On a greater scale, mutation in the Ssh gene can cause problems such as holoprosencephaly in humans [3]. This is a developmental defect of the forebrain, so the effects of Ssh is far reaching and not limited to the limbs. Understanding the mutations could lead to genetic treatment. The same work flow can be used in other intergral functional proteins.
+
+## Methods
+
+### RNA-seq datasets 
+* Describe the datasets you're working with. What tissues were the RNA-seq datasets from? How many reads were in each experiment? What read lengths? Paired or single end?
+The RNA datasets we used are from mice in early development. They are two repeats from three different areas of the mouse, the midbrain (MB), the hind limb (HL) and the fore limb (FL). The difference between the limb and non-limb expression data should show the differential expression of genes that are tissue (limb) specific. These RNAseq data is in .fastq files. These are stored in .fq.gz files. The gz means gzipped so, you need to use commands that unzip it (at least partially) to standard output. First we looked at what the each of the samples .fg.gz file looked like by using the zcat command to see the head of the gzipped file and then piped ito into the head command. Also, use zcat command and pipe that into wc to check the number of reads for each of the files. 
+
+* Describe and interpret anything flagged by `fastqc`.
+Fastqc each of the files using the flag '-o .' whilst in your own homedirectory. Make sure to use the correct address for the file. After sending the fastq.html files to my desktop via the scp command. We could look at what was flagged for each of the three samples types. In the FL, HL and MB the only red flag for the quality report was the per base sequence content. This is a flag that comes up if there is greater than 20% of any base at any position. However, due to this being an RNA seq library this type of bias is expected. We could trim the 5' end of the library to remove the bias proportion. However, all the libraries we are analysing have this bias and we are mostly doing comparitive analysis. [1]
+
+![Image of Quality report](https://github.com/cse185-sp18/cse185-week4-helenistheking/blob/master/labreport/Fastqc.png)
+Figure 1. Quality report
+
+The next step is to look at the .bam files that have already been created for the alignment of the each of the samples to the mouse mm10 genome, by using samtools command and then the -H flag to see the details suuch as program used. We used mouse mm10 genone for the whole of this lab. Also by using the samtools view function, you can look at cigar scores of the reads. This uses cigar score with N which means skipped region from the reference-so would mean a deletion from the reference genome.
+
+### RNA-seq analysis
+* Describe how you used kallisto to quantify transcripts. What version did you use? What non-default parameters did you use and why?
+Next stage is to use the kallisto command to quantify transcript abundance. This will avoid the alignment step, which usually takes a lot of time or a lot of memory, especially with such large files. Circumnavigate that problem by using the simpler kmer counting approach based on the de brujn graph. The input is the .fq.gz files in the public folder and  the output is in TPM (transcripts per million reads) for each transcript.
+
+We used the kallisto quant command but embedded it within the the run_kallisto.sh file, using vi. Edit by writing i and save to by pressing esc and quit :wq. Edit the script to use 100 bootstrap samples by using the -b flag. Then running it by typing `./run_kallisto.sh`. If incountering any permission problems run the chmod command and the +x flag. Make sure to have each of the prefix_chr5_2.fq.gz files. These output to seperate folders for each sample repeat e.g. FL_Rep1 folder. In each of these foldersthere is three files abundance.h5, abundance.tsv and  run_info.json. The abunance.tsv file is the file compainting the TPM and h5dump is the binary format of the .tsv 
+
+To create the heatmap of pairwise correlation, needed to find the concordance between each of the datasets so (6! values are created). To do this use pasta, cut, grep and awk commands in a pipe to extract the ___ value. Pipe this finally using datamash ppearson 1:2 command. Afterwards use R and the command heatmap to create a heatmap.
+
+* Describe how you used sleuth to identify differentially expressed transcripts. What False Discovery Rate (q-value) threshold did you use?
+Sleuth is used to compare the kallisto-made TPM RNAseq files from each sample. It utilises bootstrap sampling to take into account technical variation from sample to sample. Sleuth is run within R using Shiny. So to open R in command line just write in R in the command line. We just copy and pasted the commands to set up the paths to kallisto, load metadata, fit each model and test them and then writing the file. One of the lines of code is as follows. 
+``sleuth_significant <- dplyr::filter(sleuth_table, qval <= 0.05)`` 
+The false discovery rate has a qvalue of less than or equal to 0.05, means we expect them to be false positives. Using wc on the .tab output file shows that there was 1934 results that are significant. 
+
+### Enhancer analyses 
+* Describe the datasets you visualized on IGV.
+The next stage is to start visualising this problem comprehensively in IGV. IGV can visualise the .bam files but these are large so use the .tdf files which visualise the counts and are significantly smaller.  Load .tdf files onto IGV using File > Load from File > FL_Rep1Aligned.sortedByCoord.out.tdf (repeating for each of the samples). Must have first downloaded the files onto Desktop using the scp protocol. Download the ref seq file mm10 onto IGV by choosing on the left hand corner of the IGV viewer.
+
+Looking at the top 10 transcripts through using the head -n 11 command on the sleuth_results.tab file displays the significant hits. Using the ensembl web page on mice (http://uswest.ensembl.org/Mus_musculus/Info/Index) find the gene name and the gene region. Then using IGV find the genes of interest. 
+
+To find the regulatory regions that possibly cause then differentially expressed Shh we use ChIP-seq of H3K27ac and H3K4me1 for each sample. Yet again transfer these files from the public folder to your desktop using the scp command protocol. Then upload into the IGV viewer. 
+
+* What tools did you use for the multiple sequence alignment and visualization? Mention any non-default parameters.
+The last part to make a complete view of the differential expression of in limb and non-limbic samples. To do this use one more track called Pylop. This gives a per-base measure of sequence conservation across species. So a high pylop value at one base means that the position and the base is found across species, supplying context to the historical evolution of a species. 
+
+* What tool and database did you use for motif identification.
+For this we are looking at the fasta files in the region of the ZRS enhancer in a range of snakes and then human, mice, cows and dolphn. These are all compiled into the zrs_sequences.fa file which you can look at using the cat function. Using the mafft tool to create a multiple sequence alignment, using a '>' character to create a new .fa file. Then visualise this using the mview command in the command line, using the -html flag to create a new html file. 
+
+## Results 
+
+### RNA-seq analysis 
+
+``Forelimb: FL_Rep1_chr5_*.fq.gz - 12717596 
+FL_Rep2_chr5_*.fq.gz - 12717596 
+
+Hindlimb: HL_Rep1_chr5_1.fq.gz - 15731352`
+HL_Rep2_chr5_*.fq.gz-15731352 
+
+Midbrain: MB_Rep1_chr5_*.fq.gz - 13019900 
+MB_Rep2_chr5_*.fq.gz - 13019900``
+Figure 1. the number of reads for each experiment
+
+* How comparable were the RNA-seq replicates? Which 2 tissues were most similar? Include a figure or table summarizing your pairiwse analysis of each RNA-seq dataset.
+There is a variation in the RNA seq replicates that why the kallisto method was used as when used with sleuth it uses bootstrap which, means that multiple small representive samples can be used instead. The heatmap below shows that there is more similarity between HL and FL samples compared to MB which would make sense as they would have more similar protein expressipon. 
+
+![Image of Heatmap comparing RNAseq pearson correlation](https://github.com/cse185-sp18/cse185-week4-helenistheking/blob/master/labreport/Rplot03.png)
+
+Figure. Heatmap of the the pearson correlation of RNAseq between the samples of Fore limb, hind limb and mid brain in a mouse
+
+The most similar RNA samples are between the repeats so for the samples were shown for consistent person correlation. 
+
+* How many diffentially expressed transripts did you find? Include screenshots of several examples from IGV.
+
+``1) Transcript: Rpl21-202 ENSMUST00000075453.8
+Chromosome 5: 146,833,195-146,835,985
+
+![Rp](https://github.com/cse185-week4-helenistheking/labreport/1) RpI21.png)
+
+2)Transcript: Shh-201 ENSMUST00000002708.4
+Sonic hedgehog protein Sonic hedgehog protein N-product 
+Chromosome 5: 28,456,815-28,467,256
+
+![Shh](https://github.com/cse185-week4-helenistheking/labreport/2) SShh.png)
+
+3)Transcript: Uchl1-201 ENSMUST00000031131.10
+ubiquitin carboxy-terminal hydrolase L1
+Chromosome 5: 66,676,091-66,687,234
+
+![ubi](https://github.com/cse185-week4-helenistheking/labreport/8) Ubl3.png)
+
+4)Transcript: Sparcl1-201 ENSMUST00000031249.7
+SPARC-like protein 1
+Chromosome 5: 104,079,111-104,113,733 
+
+5)Gene: Parm1 ENSMUSG00000034981
+Prostate androgen-regulated mucin-like
+Chromosome 5: 91,517,615-91,626,894
+
+6)Transcript: Nat8l-201 ENSMUST00000056355.8
+N-acetyltransferase 8 like
+Chromosome 5: 33,995,984-34,005,916
+
+7)Gene: Garem2 ENSMUSG00000044576
+GRB2-associated and regulator of MAPK protein 2
+Chromosome 5: 30,105,161-30,118,378 
+
+8)Transcript: Ubl3-201 ENSMUST00000079324.13
+ubiquitin-like 3
+Chromosome 5: 148,504,635-148,552,662 
+
+9)Transcript: Hmgn2-203 ENSMUST00000102553.10
+Non-histone chromosomal protein HMG-17
+Chromosome 4: 133,964,738-133,968,001
+
+10)Gene: Lrrc8b ENSMUSG00000070639
+Volume-regulated anion channel subunit LRRC8B
+Chromosome 5: 105,415,775-105,490,074
+NB. find the printscreens of all the other IGV viewer format of the remaining genes of interest``
+
+### Enhancer analysis
+
+![ZRS region](https://github.com/cse185-sp18/cse185-week4-helenistheking/labreport/Screen Shot 2018-05-02 at 12.17.05.pngg)
+
+Figure - the ZRS region
+
+* Describe the general signal you see for H3K4me1 and H3K27ac. Where do these marks tend to fall? In introns? beginning of genes? end of genes? Do they look different between the different samples? Hypothesize why. Similarly describe the PhyloP track.
+The histone modification mark are smooth histogram of shape, varying between a line (meaning no histone modifcation) or a smooth bump (displaying acetylation or methylation).  They do not fall in a specific region as upregulation can occur in both coding and noncoding regions. They change values between samples and the H3K4me1 level of one sample provides no obvious relationship of the H3K27ac level of the sample and vice versa. There tends to be higher levels of H3K4me1 than H3K27 ac throughout the genome though. Even though both are activators and cause an upregulation of gene transcription due to a confirmational opening of the DNA through the structural proteins histones; they are on different residues on the H3 histone so have little relationship. This is because the upregultion of different genes is tissue specific so changes in each sample area MB, HL and FL.
+
+The Phylop track has a extremely bumpy and staggered. High pylop values are indicative of how evolutionarly conserved a region is. These fall in any area of the genome as both intergenic and genic regions can have upregulation. 
+
+
+* Describe the pattern of these signals in the ZRS region.
+In the ZRS region there is high pylop values showing that there is increased conservation across many species. This means that it is integral for life as seen in many species. In the limbic samples (fore limb and hind limb) there is increased H3K4me1 relative to the limbic samples (midbrain). There is mirrored with H3K27ac, however there is less acetylation in FL compared to HL. Also, there is lower levels of acetylation than methylation in general.
+
+* Provide a figure for the MSA results. Are there any sequences missing in snakes that are present in all other animals analyzed?
+
+![MSAresults2](https://github.com/cse185-sp18/cse185-week4-helenistheking/blob/master/labreport/Across%20species.png)
+
+![MSAresults1](https://github.com/cse185-sp18/cse185-week4-helenistheking/blob/master/labreport/Across%20species%202.png)
+
+The sequence `tctgaggtgacttcct` is used a sequence not found in any of the snakes but found in all the limbic animals. Perhaps this is the motif deleted for snakes that has caused a change in the expression of limbs.
+
+## Discussion
+* Summarize your analysis of the ZRS region and your interpretation of its involvement in determining whether an organism develops limbs or not.
+The ZRS region is intergenic and therefore has no mRNA, as it is an enhancer region for the Shh gene. The increased levels of H3K4me and H3K27ac in limbic samples, which are both histone marks that causes increased transcription of the eRNA. This will then upregulate Shh gene into increased expression of Shh protein. The Shh then forms a gradient across the embryo that governs the structure formed. [2]
+
+* We identified the ZRS region based on knowledge from previous literature. Are there other enhancers that appear to be both limb-specific and highly conserved nearby Shh? If you wanted to identify these regions computationally how would you do it?
+There are no obvious areas for other enhancers. But I would quanitively do it by working out enhancer or promoter regions with  significant difference between limbic and non limbic regions. They would have to be within a range from the Shh gene, doing this quantitatively rather than by eye on the IGV would mean a more rigorous approach. 
+
+* Do you have any hypotheses about why the identified mutations might lead to a loss of legs in snakes? What further experiments or analyses could be done to determine the function of this sequence?
+Upon looking at the MSA results, the inserted motif difference described above suggests that a deleltion of this motif occurred in snakes. This could have led to a frameshift mutation as it is a large nucleotide length, not just a SNP. This frameshift occured in the Mus region chr5:29,314,881-29,315,667 which on NCBI is the gene Lmbr1 which is highly conserved module for the sonic hedgehog gene (within an intron of the gene). Disruption of the coding for this protein would effect SSh expression and limb patterning, perhaps so badly that no limbs were formed. To test this hypothesis a KO of a mouse using CRISPR Cas9 to delete this motif to see if any limb formation would occur. Making sure that DNAseq would occur to check the validity. 
+
+## Citations 
+Include at least one citation
+[1]Biases in Illumina transcriptome sequencing caused by random hexamer priming.Hansen KD, Brenner SE, Dudoit S.- Nucleic Acids Res. 2010 Jul;38(12):e131. doi: 10.1093/nar/gkq224. Epub 2010 Apr 14.
+[2]A long-range Shh enhancer regulates expression in the developing limb and fin and is associated with preaxial polydactyly 
+Laura A. Lettice  Simon J.H. Heaney  Lorna A. Purdie  Li Li  Philippe de Beer Ben A. Oostra  Debbie Goode  Greg Elgar  Robert E. Hill  Esther de Graaff
+Human Molecular Genetics, Volume 12, Issue 14, 15 July 2003, Pages 1725–1735, https://doi.org/10.1093/hmg/ddg180
+[3] Nat Genet. 1996 Nov;14(3):357-60. Mutations in the human Sonic Hedgehog gene cause holoprosencephaly. oessler E1, Belloni E, Gaudenz K, Jay P, Berta P, Scherer SW, Tsui LC, Muenke M.
